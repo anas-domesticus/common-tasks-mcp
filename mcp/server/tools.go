@@ -15,7 +15,7 @@ func (s *Server) registerTools() {
 	// List tasks tool
 	s.mcp.AddTool(&mcp.Tool{
 		Name:        "list_tasks",
-		Description: "List all tasks or filter by tags",
+		Description: "Browse available tasks, optionally filtered by tags (e.g., 'backend', 'database', 'deployment'). Returns task summaries with ID, name, and a brief description. Use this to discover relevant workflows when starting work in a new area or looking for standard procedures. If you provide multiple tags, you'll get tasks that match any of them.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -31,7 +31,7 @@ func (s *Server) registerTools() {
 	// Get task tool
 	s.mcp.AddTool(&mcp.Tool{
 		Name:        "get_task",
-		Description: "Get a specific task by ID with full details including prerequisites and downstream tasks",
+		Description: "Get the complete workflow for a specific task by its ID. Returns the full task description plus related tasks: what must be done first (prerequisites), what must follow (required), and what's recommended (suggested). Use this before starting any task to understand the complete workflow, not just the immediate action. This helps you avoid missing critical steps.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -47,7 +47,7 @@ func (s *Server) registerTools() {
 	// Add task tool
 	s.mcp.AddTool(&mcp.Tool{
 		Name:        "add_task",
-		Description: "Create a new task",
+		Description: "Create a new task with its complete workflow. Include what needs to happen before this task (prerequisites), what must happen after (required follow-ups), and what's recommended after (suggested follow-ups). Use this to document repeatable workflows so future work can follow the same process. The system ensures workflows stay consistent by preventing circular dependencies.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -95,7 +95,7 @@ func (s *Server) registerTools() {
 	// Update task tool
 	s.mcp.AddTool(&mcp.Tool{
 		Name:        "update_task",
-		Description: "Update an existing task",
+		Description: "Modify an existing task's description or workflow relationships. Use this when a process changes and you need to update the documented workflow - for example, adding a new required step, removing an outdated prerequisite, or refining the task description. The task ID must already exist.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -143,7 +143,7 @@ func (s *Server) registerTools() {
 	// Delete task tool
 	s.mcp.AddTool(&mcp.Tool{
 		Name:        "delete_task",
-		Description: "Delete a task and clean up all references to it from other tasks",
+		Description: "Remove a task entirely. This automatically cleans up any references to this task in other tasks' workflows. Use this when a task is no longer relevant or has been superseded by a different workflow. This action cannot be undone.",
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{

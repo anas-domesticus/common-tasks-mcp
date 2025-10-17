@@ -47,7 +47,9 @@ func New(cfg Config, logger *zap.Logger) (*Server, error) {
 	mcpServer := mcp.NewServer(&mcp.Implementation{
 		Name:    "common-tasks-mcp",
 		Version: "0.1.0",
-	}, nil)
+	}, &mcp.ServerOptions{
+		Instructions: "This server provides access to commonly performed development tasks and workflows. Each task includes: what needs to be done first (prerequisites), what must be done after (required follow-ups), and what's recommended to do after (suggested follow-ups). Use this to understand the complete workflow for any development task, not just the immediate action. Start by listing tasks with relevant tags to find what you need, then get the full task details to see the complete workflow.",
+	})
 
 	srv := &Server{
 		mcp:         mcpServer,
