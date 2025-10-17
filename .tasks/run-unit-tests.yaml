@@ -1,0 +1,15 @@
+id: run-unit-tests
+name: Run Unit Tests
+summary: Run all unit tests in the project
+description: |-
+    Runs all unit tests across the entire codebase using the Taskfile.
+
+    Command: `task test`
+tags:
+    - go
+    - testing
+prerequisites: []
+downstream_required: []
+downstream_suggested: []
+created_at: 2025-10-17T22:36:57.116554307Z
+updated_at: 2025-10-17T22:36:57.116554307Z

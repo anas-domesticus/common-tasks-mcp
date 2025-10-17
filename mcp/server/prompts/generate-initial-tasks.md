@@ -32,18 +32,22 @@ Each task should represent a single, actionable operation that a developer would
 
 ## Where to Find Information
 
-1. **Build systems**: Check for Makefile, Taskfile.yml, package.json scripts, build.gradle, etc.
-2. **CI/CD**: Look at .github/workflows/, .gitlab-ci.yml, .circleci/, etc.
-3. **Documentation**: Read README.md, CONTRIBUTING.md, docs/
-4. **Test patterns**: Examine how tests are organized and run
-5. **Scripts**: Check scripts/ or similar directories
-6. **Project files**: go.mod, Cargo.toml, requirements.txt, etc.
+**IMPORTANT**: Base tasks on actual workflows found in the codebase, not speculation. Only create tasks for operations that developers have actually performed or that are explicitly defined in build systems and CI/CD configs.
+
+1. **Build systems**: Check for Makefile, Taskfile.yml, package.json scripts, build.gradle, etc. - these define tasks developers actually run
+2. **CI/CD**: Look at .github/workflows/, .gitlab-ci.yml, .circleci/, etc. - these show automated workflows that are actually used
+3. **Documentation**: Read README.md, CONTRIBUTING.md, docs/ - these document actual development practices
+4. **Test patterns**: Examine how tests are organized and run - look for actual test commands and patterns
+5. **Scripts**: Check scripts/ or similar directories - these are real automation that developers use
+6. **Project files**: go.mod, Cargo.toml, requirements.txt, etc. - these show actual dependencies and tooling
 7. **Git history**: Use `git log`, `git log --oneline`, and commit messages to understand:
    - Common workflows (what commands appear in commit messages)
    - Frequent change patterns (what files/areas change together)
    - Recent development focus (what's being actively worked on)
    - Release processes (tags, version bumps, changelog patterns)
    - Team practices (commit message conventions, branch patterns)
+
+Do NOT create tasks based on assumptions about what might be useful. If you don't see evidence of a workflow being used, don't create a task for it.
 
 ## Task Structure
 
@@ -65,8 +69,9 @@ Each task should include:
 4. **Think about order** - what must happen before/after each task?
 5. **Cover common scenarios** - what do developers do daily? weekly? on release?
 6. **Keep tags simple** - prefer clear, single-word tags (cicd, k8s, go, java, build). Don't overuse tags; only add new ones when necessary for clarity and organization. Aim for 2-4 tags per task.
-7. **Include directory paths** - mention specific directories in task descriptions to help LLMs navigate directly to relevant code locations (e.g., "Tests are located in pkg/task_manager/" or "Configuration files in config/")
+7. **Include directory paths** - mention specific directories in task descriptions to help LLMs navigate directly to relevant code locations (e.g., "Tests are located in pkg/task_manager/" or "Configuration files in config/"). DO NOT list the contents of files or enumerate what's inside directories - just provide the paths for navigation.
 8. **Keep tasks atomic** - each task should be a single, discrete operation. Don't create meta-tasks that just aggregate other tasks. The DAG relationships express workflows naturally without needing umbrella tasks.
+9. **Keep descriptions concise** - focus on what the task does and where relevant files are located. Avoid listing file contents, dependency versions, environment variables, or other detailed configuration unless absolutely necessary to run the command.
 
 ## Example Task Relationships
 

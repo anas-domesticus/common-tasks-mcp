@@ -93,10 +93,12 @@ The server provides the following MCP tools:
 The server provides the following MCP prompts:
 
 - **generate-initial-tasks**: Prompt for generating an initial set of tasks for a codebase. Guides exploration of project structure, build systems, CI/CD configs, and documentation to create tasks with proper relationships and workflows.
+- **capture-workflow**: Prompt for capturing workflows as tasks during active development. Guides recognition of repeatable operations and helps maintain tasks as you work, ensuring institutional knowledge is captured in real-time.
 
-You can also access this prompt via the CLI:
+You can also access prompts via the CLI:
 ```bash
-mcp prompt
+mcp prompt generate-initial-tasks
+mcp prompt capture-workflow
 ```
 
 ### Task Structure

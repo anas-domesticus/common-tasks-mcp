@@ -15,6 +15,9 @@ import (
 //go:embed prompts/generate-initial-tasks.md
 var generateInitialTasksPrompt string
 
+//go:embed prompts/capture-workflow.md
+var captureWorkflowPrompt string
+
 // Server wraps the MCP server
 type Server struct {
 	mcp         *mcp.Server
@@ -149,6 +152,14 @@ func (s *Server) registerPrompts() {
 	}
 
 	s.mcp.AddPrompt(generateTasksPrompt, s.handleGenerateTasksPrompt)
+
+	// Capture workflow prompt
+	captureWorkflowPrompt := &mcp.Prompt{
+		Name:        "capture-workflow",
+		Description: "Prompt for capturing workflows as tasks during active development. Guides recognition of repeatable operations and helps maintain tasks as you work, ensuring institutional knowledge is captured in real-time.",
+	}
+
+	s.mcp.AddPrompt(captureWorkflowPrompt, s.handleCaptureWorkflowPrompt)
 }
 
 // handleGenerateTasksPrompt handles the generate-initial-tasks prompt
@@ -161,6 +172,27 @@ func (s *Server) handleGenerateTasksPrompt(ctx context.Context, req *mcp.GetProm
 
 	return &mcp.GetPromptResult{
 		Description: "Prompt for generating an initial set of tasks for a codebase",
+		Messages: []*mcp.PromptMessage{
+			{
+				Role: "user",
+				Content: &mcp.TextContent{
+					Text: prompt,
+				},
+			},
+		},
+	}, nil
+}
+
+// handleCaptureWorkflowPrompt handles the capture-workflow prompt
+func (s *Server) handleCaptureWorkflowPrompt(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	s.logger.Debug("Handling capture-workflow prompt request")
+
+	prompt := captureWorkflowPrompt
+
+	s.logger.Info("Successfully retrieved capture-workflow prompt", zap.Int("length", len(prompt)))
+
+	return &mcp.GetPromptResult{
+		Description: "Prompt for capturing workflows as tasks during active development",
 		Messages: []*mcp.PromptMessage{
 			{
 				Role: "user",
