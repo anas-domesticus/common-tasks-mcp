@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"common-tasks-mcp/pkg/logger"
 	"common-tasks-mcp/pkg/task_manager/types"
 )
 
@@ -14,7 +15,8 @@ func TestPersistAndLoad(t *testing.T) {
 	testDir := filepath.Join(t.TempDir(), "tasks")
 
 	// Create a manager with 3 tasks
-	manager1 := NewManager()
+	log, _ := logger.New(false)
+	manager1 := NewManager(log)
 
 	now := time.Now().UTC().Truncate(time.Second)
 
@@ -75,7 +77,8 @@ func TestPersistAndLoad(t *testing.T) {
 	}
 
 	// Create a new manager and load tasks
-	manager2 := NewManager()
+	log2, _ := logger.New(false)
+	manager2 := NewManager(log2)
 	if err := manager2.LoadFromDir(testDir); err != nil {
 		t.Fatalf("Failed to load tasks: %v", err)
 	}
@@ -307,7 +310,8 @@ func TestAddTask(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := NewManager()
+			log, _ := logger.New(false)
+			manager := NewManager(log)
 
 			// Add setup tasks
 			for _, task := range tt.setupTasks {
@@ -346,7 +350,8 @@ func TestAddTask(t *testing.T) {
 }
 
 func TestGetTask(t *testing.T) {
-	manager := NewManager()
+	log, _ := logger.New(false)
+	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Add a task to the manager
@@ -427,7 +432,8 @@ func TestGetTask(t *testing.T) {
 }
 
 func TestGetTasks(t *testing.T) {
-	manager := NewManager()
+	log, _ := logger.New(false)
+	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Add multiple tasks
@@ -997,7 +1003,8 @@ func TestUpdateTask(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := NewManager()
+			log, _ := logger.New(false)
+			manager := NewManager(log)
 
 			// Add all setup tasks
 			for _, task := range tt.setupTasks {
@@ -1050,7 +1057,8 @@ func TestUpdateTask(t *testing.T) {
 }
 
 func TestDeleteTask(t *testing.T) {
-	manager := NewManager()
+	log, _ := logger.New(false)
+	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Add multiple tasks
@@ -1166,7 +1174,8 @@ func TestDeleteTask(t *testing.T) {
 }
 
 func TestDeleteTaskWithReferences(t *testing.T) {
-	manager := NewManager()
+	log, _ := logger.New(false)
+	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Create a task graph: task-a -> task-b -> task-c
@@ -1321,7 +1330,8 @@ func TestDeleteTaskWithReferences(t *testing.T) {
 }
 
 func TestListAllTasks(t *testing.T) {
-	manager := NewManager()
+	log, _ := logger.New(false)
+	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Test with empty manager
@@ -1784,7 +1794,8 @@ func TestDetectCycles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			manager := NewManager()
+			log, _ := logger.New(false)
+			manager := NewManager(log)
 
 			// Add all tasks to the manager directly (bypassing AddTask validation
 			// since we're testing DetectCycles itself and need to create invalid graphs)

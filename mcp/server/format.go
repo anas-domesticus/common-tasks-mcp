@@ -24,17 +24,6 @@ func formatTasksAsMarkdown(tasks []*types.Task) string {
 			sb.WriteString(fmt.Sprintf("%s\n\n", task.Summary))
 		}
 
-		if len(task.Tags) > 0 {
-			sb.WriteString("Tags: ")
-			for i, tag := range task.Tags {
-				if i > 0 {
-					sb.WriteString(", ")
-				}
-				sb.WriteString(fmt.Sprintf("`%s`", tag))
-			}
-			sb.WriteString("\n\n")
-		}
-
 		sb.WriteString("---\n\n")
 	}
 
@@ -100,17 +89,6 @@ func formatTaskAsMarkdown(task *types.Task, tm *task_manager.Manager) string {
 			}
 			sb.WriteString("\n")
 		}
-	}
-
-	if len(task.Tags) > 0 {
-		sb.WriteString("**Tags:** ")
-		for i, tag := range task.Tags {
-			if i > 0 {
-				sb.WriteString(", ")
-			}
-			sb.WriteString(fmt.Sprintf("`%s`", tag))
-		}
-		sb.WriteString("\n")
 	}
 
 	return sb.String()

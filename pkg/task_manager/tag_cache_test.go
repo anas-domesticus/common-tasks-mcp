@@ -4,11 +4,13 @@ import (
 	"testing"
 	"time"
 
+	"common-tasks-mcp/pkg/logger"
 	"common-tasks-mcp/pkg/task_manager/types"
 )
 
 func TestPopulateTagCache(t *testing.T) {
-	manager := NewManager()
+	log, _ := logger.New(false)
+	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Create tasks with various tags
@@ -164,7 +166,8 @@ func TestPopulateTagCache(t *testing.T) {
 }
 
 func TestGetTasksByTag(t *testing.T) {
-	manager := NewManager()
+	log, _ := logger.New(false)
+	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// Create tasks with various tags

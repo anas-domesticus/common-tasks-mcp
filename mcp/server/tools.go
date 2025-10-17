@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
@@ -290,6 +291,7 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		zap.Strings("tags", args.Tags),
 	)
 
+	now := time.Now()
 	task := &types.Task{
 		ID:                     args.ID,
 		Name:                   args.Name,
@@ -299,6 +301,8 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		PrerequisiteIDs:        args.PrerequisiteIDs,
 		DownstreamRequiredIDs:  args.DownstreamRequiredIDs,
 		DownstreamSuggestedIDs: args.DownstreamSuggestedIDs,
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 
 	if err := s.taskManager.AddTask(task); err != nil {
@@ -377,6 +381,23 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 		zap.Strings("tags", args.Tags),
 	)
 
+	// Get existing task to preserve CreatedAt timestamp
+	existingTask, err := s.taskManager.GetTask(args.ID)
+	if err != nil {
+		s.logger.Error("Failed to get existing task for update",
+			zap.String("task_id", args.ID),
+			zap.Error(err),
+		)
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: fmt.Sprintf("failed to get existing task: %v", err),
+				},
+			},
+		}, nil
+	}
+
 	task := &types.Task{
 		ID:                     args.ID,
 		Name:                   args.Name,
@@ -386,6 +407,8 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 		PrerequisiteIDs:        args.PrerequisiteIDs,
 		DownstreamRequiredIDs:  args.DownstreamRequiredIDs,
 		DownstreamSuggestedIDs: args.DownstreamSuggestedIDs,
+		CreatedAt:              existingTask.CreatedAt,
+		UpdatedAt:              time.Now(),
 	}
 
 	if err := s.taskManager.UpdateTask(task); err != nil {
