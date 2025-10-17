@@ -36,11 +36,16 @@ func New(cfg Config) (*Server, error) {
 		Version: "0.1.0",
 	}, nil)
 
-	return &Server{
+	srv := &Server{
 		mcp:         mcpServer,
 		config:      cfg,
 		taskManager: taskMgr,
-	}, nil
+	}
+
+	// Register all MCP tools
+	srv.registerTools()
+
+	return srv, nil
 }
 
 // RunHTTP starts the MCP server with HTTP transport
