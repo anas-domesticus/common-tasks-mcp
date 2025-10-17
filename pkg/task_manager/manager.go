@@ -159,6 +159,35 @@ func (m *Manager) ResolveTaskPointers() error {
 	return nil
 }
 
+// Clone creates a deep copy of the manager and all its tasks.
+// The cloned manager has independent tasks with resolved pointers.
+// This is useful for making transactional changes that can be validated before committing.
+func (m *Manager) Clone() *Manager {
+	if m == nil {
+		return nil
+	}
+
+	// Create new manager
+	clone := NewManager()
+
+	// Clone all tasks
+	for id, task := range m.tasks {
+		clonedTask := task.Clone()
+		clone.tasks[id] = clonedTask
+	}
+
+	// Resolve task pointers in the cloned manager
+	// Note: We ignore errors here because if the original manager was valid,
+	// the clone should also be valid. If there are resolution errors, they
+	// would have existed in the original manager too.
+	_ = clone.ResolveTaskPointers()
+
+	// Clone tag cache (we'll just rebuild it)
+	clone.PopulateTagCache()
+
+	return clone
+}
+
 // DetectCycles checks all three DAGs (Prerequisites, Downstream Required, and Downstream Suggested)
 // for cycles. Returns an error if any cycles are detected, with detailed information about all cycles found.
 func (m *Manager) DetectCycles() error {

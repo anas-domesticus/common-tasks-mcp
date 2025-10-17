@@ -901,6 +901,250 @@ func TestTask_CheckEdgeConsistency(t *testing.T) {
 	}
 }
 
+func TestTask_Clone(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+
+	tests := []struct {
+		name string
+		task *Task
+	}{
+		{
+			name: "nil task returns nil",
+			task: nil,
+		},
+		{
+			name: "task with all fields populated",
+			task: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1", "suggested-2"},
+				// Populate pointer fields - these should NOT be cloned
+				Prerequisites: []*Task{
+					{ID: "prereq-1"},
+					{ID: "prereq-2"},
+				},
+				DownstreamRequired: []*Task{
+					{ID: "required-1"},
+				},
+				DownstreamSuggested: []*Task{
+					{ID: "suggested-1"},
+					{ID: "suggested-2"},
+				},
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+		},
+		{
+			name: "task with empty slices",
+			task: &Task{
+				ID:                     "test-2",
+				Name:                   "Empty Task",
+				Summary:                "",
+				Description:            "",
+				Tags:                   []string{},
+				PrerequisiteIDs:        []string{},
+				DownstreamRequiredIDs:  []string{},
+				DownstreamSuggestedIDs: []string{},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+		},
+		{
+			name: "task with nil slices",
+			task: &Task{
+				ID:                     "test-3",
+				Name:                   "Nil Slices Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   nil,
+				PrerequisiteIDs:        nil,
+				DownstreamRequiredIDs:  nil,
+				DownstreamSuggestedIDs: nil,
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+		},
+		{
+			name: "task with only ID and timestamps",
+			task: &Task{
+				ID:        "test-4",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clone := tt.task.Clone()
+
+			// Test 1: nil task returns nil
+			if tt.task == nil {
+				if clone != nil {
+					t.Errorf("Clone() of nil task should return nil, got %v", clone)
+				}
+				return
+			}
+
+			// Test 2: clone should not be nil for non-nil task
+			if clone == nil {
+				t.Fatal("Clone() returned nil for non-nil task")
+			}
+
+			// Test 3: clone should be a different instance (different pointer)
+			if tt.task == clone {
+				t.Error("Clone() returned the same pointer, expected a new instance")
+			}
+
+			// Test 4: clone should equal the original using Equals method
+			if !tt.task.Equals(clone) {
+				t.Error("Clone() should equal the original task")
+			}
+
+			// Test 5: verify all scalar fields are copied
+			if clone.ID != tt.task.ID {
+				t.Errorf("Clone().ID = %v, want %v", clone.ID, tt.task.ID)
+			}
+			if clone.Name != tt.task.Name {
+				t.Errorf("Clone().Name = %v, want %v", clone.Name, tt.task.Name)
+			}
+			if clone.Summary != tt.task.Summary {
+				t.Errorf("Clone().Summary = %v, want %v", clone.Summary, tt.task.Summary)
+			}
+			if clone.Description != tt.task.Description {
+				t.Errorf("Clone().Description = %v, want %v", clone.Description, tt.task.Description)
+			}
+			if !clone.CreatedAt.Equal(tt.task.CreatedAt) {
+				t.Errorf("Clone().CreatedAt = %v, want %v", clone.CreatedAt, tt.task.CreatedAt)
+			}
+			if !clone.UpdatedAt.Equal(tt.task.UpdatedAt) {
+				t.Errorf("Clone().UpdatedAt = %v, want %v", clone.UpdatedAt, tt.task.UpdatedAt)
+			}
+
+			// Test 6: verify slice fields are deep copied (not the same slice reference)
+			if tt.task.Tags != nil {
+				if len(clone.Tags) != len(tt.task.Tags) {
+					t.Errorf("Clone().Tags length = %d, want %d", len(clone.Tags), len(tt.task.Tags))
+				}
+				// Check that it's a different slice (different memory address)
+				if len(tt.task.Tags) > 0 && &clone.Tags[0] == &tt.task.Tags[0] {
+					t.Error("Clone().Tags should be a deep copy, not a reference to the same slice")
+				}
+				// Check values are the same
+				for i := range tt.task.Tags {
+					if clone.Tags[i] != tt.task.Tags[i] {
+						t.Errorf("Clone().Tags[%d] = %v, want %v", i, clone.Tags[i], tt.task.Tags[i])
+					}
+				}
+			}
+
+			if tt.task.PrerequisiteIDs != nil {
+				if len(clone.PrerequisiteIDs) != len(tt.task.PrerequisiteIDs) {
+					t.Errorf("Clone().PrerequisiteIDs length = %d, want %d", len(clone.PrerequisiteIDs), len(tt.task.PrerequisiteIDs))
+				}
+				// Check that it's a different slice
+				if len(tt.task.PrerequisiteIDs) > 0 && &clone.PrerequisiteIDs[0] == &tt.task.PrerequisiteIDs[0] {
+					t.Error("Clone().PrerequisiteIDs should be a deep copy, not a reference to the same slice")
+				}
+				// Check values are the same
+				for i := range tt.task.PrerequisiteIDs {
+					if clone.PrerequisiteIDs[i] != tt.task.PrerequisiteIDs[i] {
+						t.Errorf("Clone().PrerequisiteIDs[%d] = %v, want %v", i, clone.PrerequisiteIDs[i], tt.task.PrerequisiteIDs[i])
+					}
+				}
+			}
+
+			if tt.task.DownstreamRequiredIDs != nil {
+				if len(clone.DownstreamRequiredIDs) != len(tt.task.DownstreamRequiredIDs) {
+					t.Errorf("Clone().DownstreamRequiredIDs length = %d, want %d", len(clone.DownstreamRequiredIDs), len(tt.task.DownstreamRequiredIDs))
+				}
+				// Check that it's a different slice
+				if len(tt.task.DownstreamRequiredIDs) > 0 && &clone.DownstreamRequiredIDs[0] == &tt.task.DownstreamRequiredIDs[0] {
+					t.Error("Clone().DownstreamRequiredIDs should be a deep copy, not a reference to the same slice")
+				}
+				// Check values are the same
+				for i := range tt.task.DownstreamRequiredIDs {
+					if clone.DownstreamRequiredIDs[i] != tt.task.DownstreamRequiredIDs[i] {
+						t.Errorf("Clone().DownstreamRequiredIDs[%d] = %v, want %v", i, clone.DownstreamRequiredIDs[i], tt.task.DownstreamRequiredIDs[i])
+					}
+				}
+			}
+
+			if tt.task.DownstreamSuggestedIDs != nil {
+				if len(clone.DownstreamSuggestedIDs) != len(tt.task.DownstreamSuggestedIDs) {
+					t.Errorf("Clone().DownstreamSuggestedIDs length = %d, want %d", len(clone.DownstreamSuggestedIDs), len(tt.task.DownstreamSuggestedIDs))
+				}
+				// Check that it's a different slice
+				if len(tt.task.DownstreamSuggestedIDs) > 0 && &clone.DownstreamSuggestedIDs[0] == &tt.task.DownstreamSuggestedIDs[0] {
+					t.Error("Clone().DownstreamSuggestedIDs should be a deep copy, not a reference to the same slice")
+				}
+				// Check values are the same
+				for i := range tt.task.DownstreamSuggestedIDs {
+					if clone.DownstreamSuggestedIDs[i] != tt.task.DownstreamSuggestedIDs[i] {
+						t.Errorf("Clone().DownstreamSuggestedIDs[%d] = %v, want %v", i, clone.DownstreamSuggestedIDs[i], tt.task.DownstreamSuggestedIDs[i])
+					}
+				}
+			}
+
+			// Test 7: verify pointer fields are nil (not cloned)
+			if clone.Prerequisites != nil {
+				t.Error("Clone().Prerequisites should be nil, pointer fields should not be cloned")
+			}
+			if clone.DownstreamRequired != nil {
+				t.Error("Clone().DownstreamRequired should be nil, pointer fields should not be cloned")
+			}
+			if clone.DownstreamSuggested != nil {
+				t.Error("Clone().DownstreamSuggested should be nil, pointer fields should not be cloned")
+			}
+
+			// Test 8: modifying the clone should not affect the original
+			if clone.Tags != nil && len(clone.Tags) > 0 {
+				originalTags := make([]string, len(tt.task.Tags))
+				copy(originalTags, tt.task.Tags)
+
+				clone.Tags[0] = "modified-tag"
+
+				if tt.task.Tags[0] == "modified-tag" {
+					t.Error("Modifying clone.Tags should not affect the original task")
+				}
+				if tt.task.Tags[0] != originalTags[0] {
+					t.Error("Original task.Tags should not be modified when clone is modified")
+				}
+			}
+
+			if clone.PrerequisiteIDs != nil && len(clone.PrerequisiteIDs) > 0 {
+				originalIDs := make([]string, len(tt.task.PrerequisiteIDs))
+				copy(originalIDs, tt.task.PrerequisiteIDs)
+
+				clone.PrerequisiteIDs[0] = "modified-id"
+
+				if tt.task.PrerequisiteIDs[0] == "modified-id" {
+					t.Error("Modifying clone.PrerequisiteIDs should not affect the original task")
+				}
+				if tt.task.PrerequisiteIDs[0] != originalIDs[0] {
+					t.Error("Original task.PrerequisiteIDs should not be modified when clone is modified")
+				}
+			}
+
+			// Modifying scalar fields should not affect original
+			clone.Name = "Modified Name"
+			if tt.task.Name == "Modified Name" {
+				t.Error("Modifying clone.Name should not affect the original task")
+			}
+
+			clone.Description = "Modified Description"
+			if tt.task.Description == "Modified Description" {
+				t.Error("Modifying clone.Description should not affect the original task")
+			}
+		})
+	}
+}
+
 func TestTask_SettersAndGetters(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 

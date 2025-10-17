@@ -93,6 +93,54 @@ func (t *Task) Equals(other *Task) bool {
 	return true
 }
 
+// Clone creates a deep copy of the task, copying all persisted fields.
+// Note: The pointer fields (Prerequisites, DownstreamRequired, DownstreamSuggested)
+// are NOT cloned - they should be resolved by the Manager after cloning.
+func (t *Task) Clone() *Task {
+	if t == nil {
+		return nil
+	}
+
+	// Clone the task with all scalar fields
+	clone := &Task{
+		ID:          t.ID,
+		Name:        t.Name,
+		Summary:     t.Summary,
+		Description: t.Description,
+		CreatedAt:   t.CreatedAt,
+		UpdatedAt:   t.UpdatedAt,
+	}
+
+	// Deep copy Tags slice
+	if t.Tags != nil {
+		clone.Tags = make([]string, len(t.Tags))
+		copy(clone.Tags, t.Tags)
+	}
+
+	// Deep copy PrerequisiteIDs slice
+	if t.PrerequisiteIDs != nil {
+		clone.PrerequisiteIDs = make([]string, len(t.PrerequisiteIDs))
+		copy(clone.PrerequisiteIDs, t.PrerequisiteIDs)
+	}
+
+	// Deep copy DownstreamRequiredIDs slice
+	if t.DownstreamRequiredIDs != nil {
+		clone.DownstreamRequiredIDs = make([]string, len(t.DownstreamRequiredIDs))
+		copy(clone.DownstreamRequiredIDs, t.DownstreamRequiredIDs)
+	}
+
+	// Deep copy DownstreamSuggestedIDs slice
+	if t.DownstreamSuggestedIDs != nil {
+		clone.DownstreamSuggestedIDs = make([]string, len(t.DownstreamSuggestedIDs))
+		copy(clone.DownstreamSuggestedIDs, t.DownstreamSuggestedIDs)
+	}
+
+	// Note: pointer fields (Prerequisites, DownstreamRequired, DownstreamSuggested)
+	// are intentionally left as nil and will be resolved by Manager.ResolveTaskPointers()
+
+	return clone
+}
+
 // GetPrerequisiteIDs returns the IDs of prerequisite tasks.
 // Returns nil if the receiver is nil.
 func (t *Task) GetPrerequisiteIDs() []string {
