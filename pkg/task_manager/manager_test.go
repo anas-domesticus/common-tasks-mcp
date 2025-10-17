@@ -448,3 +448,324 @@ func TestGetTasks(t *testing.T) {
 		t.Errorf("Expected 'task ID cannot be empty' error, got: %v", err)
 	}
 }
+
+func TestUpdateTask(t *testing.T) {
+	manager := NewManager()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Add initial task
+	task1 := &types.Task{
+		ID:          "task-1",
+		Name:        "Original Name",
+		Summary:     "Original Summary",
+		Description: "Original Description",
+		Tags:        []string{"original"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	if err := manager.AddTask(task1); err != nil {
+		t.Fatalf("Failed to add task: %v", err)
+	}
+
+	// Test updating an existing task
+	updatedTask := &types.Task{
+		ID:          "task-1",
+		Name:        "Updated Name",
+		Summary:     "Updated Summary",
+		Description: "Updated Description",
+		Tags:        []string{"updated", "modified"},
+		CreatedAt:   now,
+		UpdatedAt:   now.Add(time.Hour),
+	}
+
+	err := manager.UpdateTask(updatedTask)
+	if err != nil {
+		t.Fatalf("Expected no error when updating existing task, got: %v", err)
+	}
+
+	// Verify task was updated
+	retrievedTask, err := manager.GetTask("task-1")
+	if err != nil {
+		t.Fatalf("Failed to retrieve updated task: %v", err)
+	}
+
+	if retrievedTask.Name != "Updated Name" {
+		t.Errorf("Name not updated: expected 'Updated Name', got %s", retrievedTask.Name)
+	}
+	if retrievedTask.Summary != "Updated Summary" {
+		t.Errorf("Summary not updated: expected 'Updated Summary', got %s", retrievedTask.Summary)
+	}
+	if retrievedTask.Description != "Updated Description" {
+		t.Errorf("Description not updated: expected 'Updated Description', got %s", retrievedTask.Description)
+	}
+	if len(retrievedTask.Tags) != 2 || retrievedTask.Tags[0] != "updated" {
+		t.Errorf("Tags not updated: expected ['updated', 'modified'], got %v", retrievedTask.Tags)
+	}
+
+	// Test updating a non-existent task
+	nonExistentTask := &types.Task{
+		ID:          "non-existent",
+		Name:        "Non-existent Task",
+		Summary:     "This task doesn't exist",
+		Description: "Should fail",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	err = manager.UpdateTask(nonExistentTask)
+	if err == nil {
+		t.Error("Expected error when updating non-existent task, got nil")
+	} else if err.Error() != "task with ID non-existent not found" {
+		t.Errorf("Expected 'task not found' error, got: %v", err)
+	}
+
+	// Test updating with nil task
+	err = manager.UpdateTask(nil)
+	if err == nil {
+		t.Error("Expected error when updating nil task, got nil")
+	} else if err.Error() != "task cannot be nil" {
+		t.Errorf("Expected 'task cannot be nil' error, got: %v", err)
+	}
+
+	// Test updating with empty ID
+	emptyIDTask := &types.Task{
+		ID:          "",
+		Name:        "Task with empty ID",
+		Summary:     "Invalid",
+		Description: "Should fail",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	err = manager.UpdateTask(emptyIDTask)
+	if err == nil {
+		t.Error("Expected error when updating task with empty ID, got nil")
+	} else if err.Error() != "task ID cannot be empty" {
+		t.Errorf("Expected 'task ID cannot be empty' error, got: %v", err)
+	}
+
+	// Verify original task count unchanged after failed updates
+	if len(manager.tasks) != 1 {
+		t.Errorf("Expected 1 task in manager after failed updates, got %d", len(manager.tasks))
+	}
+}
+
+func TestDeleteTask(t *testing.T) {
+	manager := NewManager()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Add multiple tasks
+	task1 := &types.Task{
+		ID:          "task-1",
+		Name:        "Task 1",
+		Summary:     "First task",
+		Description: "To be deleted",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	task2 := &types.Task{
+		ID:          "task-2",
+		Name:        "Task 2",
+		Summary:     "Second task",
+		Description: "To be kept",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	task3 := &types.Task{
+		ID:          "task-3",
+		Name:        "Task 3",
+		Summary:     "Third task",
+		Description: "To be deleted later",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	if err := manager.AddTask(task1); err != nil {
+		t.Fatalf("Failed to add task1: %v", err)
+	}
+	if err := manager.AddTask(task2); err != nil {
+		t.Fatalf("Failed to add task2: %v", err)
+	}
+	if err := manager.AddTask(task3); err != nil {
+		t.Fatalf("Failed to add task3: %v", err)
+	}
+
+	// Verify initial count
+	if len(manager.tasks) != 3 {
+		t.Errorf("Expected 3 tasks initially, got %d", len(manager.tasks))
+	}
+
+	// Test deleting an existing task
+	err := manager.DeleteTask("task-1")
+	if err != nil {
+		t.Fatalf("Expected no error when deleting existing task, got: %v", err)
+	}
+
+	// Verify task was deleted
+	if len(manager.tasks) != 2 {
+		t.Errorf("Expected 2 tasks after deletion, got %d", len(manager.tasks))
+	}
+
+	_, err = manager.GetTask("task-1")
+	if err == nil {
+		t.Error("Expected error when retrieving deleted task, got nil")
+	}
+
+	// Verify other tasks still exist
+	task2Retrieved, err := manager.GetTask("task-2")
+	if err != nil {
+		t.Errorf("Failed to retrieve task-2 after deleting task-1: %v", err)
+	}
+	if task2Retrieved.ID != "task-2" {
+		t.Errorf("Retrieved wrong task: expected task-2, got %s", task2Retrieved.ID)
+	}
+
+	// Test deleting a non-existent task
+	err = manager.DeleteTask("non-existent")
+	if err == nil {
+		t.Error("Expected error when deleting non-existent task, got nil")
+	} else if err.Error() != "task with ID non-existent not found" {
+		t.Errorf("Expected 'task not found' error, got: %v", err)
+	}
+
+	// Test deleting with empty ID
+	err = manager.DeleteTask("")
+	if err == nil {
+		t.Error("Expected error when deleting with empty ID, got nil")
+	} else if err.Error() != "task ID cannot be empty" {
+		t.Errorf("Expected 'task ID cannot be empty' error, got: %v", err)
+	}
+
+	// Verify count unchanged after failed deletes
+	if len(manager.tasks) != 2 {
+		t.Errorf("Expected 2 tasks after failed deletes, got %d", len(manager.tasks))
+	}
+
+	// Delete another task
+	err = manager.DeleteTask("task-3")
+	if err != nil {
+		t.Fatalf("Expected no error when deleting task-3, got: %v", err)
+	}
+
+	// Verify only task-2 remains
+	if len(manager.tasks) != 1 {
+		t.Errorf("Expected 1 task remaining, got %d", len(manager.tasks))
+	}
+
+	remainingTask, err := manager.GetTask("task-2")
+	if err != nil {
+		t.Error("Failed to retrieve remaining task-2")
+	}
+	if remainingTask.ID != "task-2" {
+		t.Errorf("Wrong task remaining: expected task-2, got %s", remainingTask.ID)
+	}
+}
+
+func TestListAllTasks(t *testing.T) {
+	manager := NewManager()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Test with empty manager
+	tasks := manager.ListAllTasks()
+	if len(tasks) != 0 {
+		t.Errorf("Expected 0 tasks in empty manager, got %d", len(tasks))
+	}
+	if tasks == nil {
+		t.Error("Expected non-nil slice, got nil")
+	}
+
+	// Add single task
+	task1 := &types.Task{
+		ID:          "task-1",
+		Name:        "Task 1",
+		Summary:     "First task",
+		Description: "Test task 1",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	if err := manager.AddTask(task1); err != nil {
+		t.Fatalf("Failed to add task1: %v", err)
+	}
+
+	tasks = manager.ListAllTasks()
+	if len(tasks) != 1 {
+		t.Errorf("Expected 1 task, got %d", len(tasks))
+	}
+	if tasks[0].ID != "task-1" {
+		t.Errorf("Expected task-1, got %s", tasks[0].ID)
+	}
+
+	// Add more tasks
+	task2 := &types.Task{
+		ID:          "task-2",
+		Name:        "Task 2",
+		Summary:     "Second task",
+		Description: "Test task 2",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	task3 := &types.Task{
+		ID:          "task-3",
+		Name:        "Task 3",
+		Summary:     "Third task",
+		Description: "Test task 3",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	if err := manager.AddTask(task2); err != nil {
+		t.Fatalf("Failed to add task2: %v", err)
+	}
+	if err := manager.AddTask(task3); err != nil {
+		t.Fatalf("Failed to add task3: %v", err)
+	}
+
+	tasks = manager.ListAllTasks()
+	if len(tasks) != 3 {
+		t.Errorf("Expected 3 tasks, got %d", len(tasks))
+	}
+
+	// Verify all tasks are present (order doesn't matter with maps)
+	taskIDs := make(map[string]bool)
+	for _, task := range tasks {
+		taskIDs[task.ID] = true
+	}
+
+	if !taskIDs["task-1"] {
+		t.Error("task-1 not found in ListAllTasks result")
+	}
+	if !taskIDs["task-2"] {
+		t.Error("task-2 not found in ListAllTasks result")
+	}
+	if !taskIDs["task-3"] {
+		t.Error("task-3 not found in ListAllTasks result")
+	}
+
+	// Delete a task and verify list updates
+	if err := manager.DeleteTask("task-2"); err != nil {
+		t.Fatalf("Failed to delete task-2: %v", err)
+	}
+
+	tasks = manager.ListAllTasks()
+	if len(tasks) != 2 {
+		t.Errorf("Expected 2 tasks after deletion, got %d", len(tasks))
+	}
+
+	// Verify task-2 is not in the list
+	for _, task := range tasks {
+		if task.ID == "task-2" {
+			t.Error("Deleted task-2 still appears in ListAllTasks result")
+		}
+	}
+}

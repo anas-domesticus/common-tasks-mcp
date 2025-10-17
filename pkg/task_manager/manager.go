@@ -40,6 +40,44 @@ func (m *Manager) AddTask(task *types.Task) error {
 	return nil
 }
 
+// UpdateTask updates an existing task in the manager
+func (m *Manager) UpdateTask(task *types.Task) error {
+	if task == nil {
+		return fmt.Errorf("task cannot be nil")
+	}
+	if task.ID == "" {
+		return fmt.Errorf("task ID cannot be empty")
+	}
+	if _, exists := m.tasks[task.ID]; !exists {
+		return fmt.Errorf("task with ID %s not found", task.ID)
+	}
+
+	m.tasks[task.ID] = task
+	return nil
+}
+
+// DeleteTask removes a task from the manager
+func (m *Manager) DeleteTask(id string) error {
+	if id == "" {
+		return fmt.Errorf("task ID cannot be empty")
+	}
+	if _, exists := m.tasks[id]; !exists {
+		return fmt.Errorf("task with ID %s not found", id)
+	}
+
+	delete(m.tasks, id)
+	return nil
+}
+
+// ListAllTasks returns all tasks in the manager
+func (m *Manager) ListAllTasks() []*types.Task {
+	tasks := make([]*types.Task, 0, len(m.tasks))
+	for _, task := range m.tasks {
+		tasks = append(tasks, task)
+	}
+	return tasks
+}
+
 // GetTask retrieves a task by ID
 func (m *Manager) GetTask(id string) (*types.Task, error) {
 	if id == "" {
