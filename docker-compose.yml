@@ -18,9 +18,6 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Mount the tasks directory
-      - tasks-data:/data
+      # Mount the tasks directory from local .tasks folder
+      - ./.tasks:/data
     restart: unless-stopped
-
-volumes:
-  tasks-data:
