@@ -88,3 +88,57 @@ func (t *Task) Equals(other *Task) bool {
 
 	return true
 }
+
+// GetPrerequisiteIDs returns the IDs of prerequisite tasks.
+// Returns nil if the receiver is nil.
+func (t *Task) GetPrerequisiteIDs() []string {
+	if t == nil {
+		return nil
+	}
+	return t.PrerequisiteIDs
+}
+
+// GetDownstreamRequiredIDs returns the IDs of required downstream tasks.
+// Returns nil if the receiver is nil.
+func (t *Task) GetDownstreamRequiredIDs() []string {
+	if t == nil {
+		return nil
+	}
+	return t.DownstreamRequiredIDs
+}
+
+// GetDownstreamSuggestedIDs returns the IDs of suggested downstream tasks.
+// Returns nil if the receiver is nil.
+func (t *Task) GetDownstreamSuggestedIDs() []string {
+	if t == nil {
+		return nil
+	}
+	return t.DownstreamSuggestedIDs
+}
+
+// GetPrerequisites returns the resolved prerequisite task pointers.
+// Returns nil if the receiver is nil.
+func (t *Task) GetPrerequisites() []*Task {
+	if t == nil {
+		return nil
+	}
+	return t.Prerequisites
+}
+
+// GetDownstreamRequired returns the resolved required downstream task pointers.
+// Returns nil if the receiver is nil.
+func (t *Task) GetDownstreamRequired() []*Task {
+	if t == nil {
+		return nil
+	}
+	return t.DownstreamRequired
+}
+
+// GetDownstreamSuggested returns the resolved suggested downstream task pointers.
+// Returns nil if the receiver is nil.
+func (t *Task) GetDownstreamSuggested() []*Task {
+	if t == nil {
+		return nil
+	}
+	return t.DownstreamSuggested
+}
