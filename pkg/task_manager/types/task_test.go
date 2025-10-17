@@ -900,3 +900,325 @@ func TestTask_CheckEdgeConsistency(t *testing.T) {
 		})
 	}
 }
+
+func TestTask_SettersAndGetters(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Helper tasks for testing
+	prereq1 := &Task{ID: "prereq-1", Name: "Prerequisite 1", CreatedAt: now, UpdatedAt: now}
+	prereq2 := &Task{ID: "prereq-2", Name: "Prerequisite 2", CreatedAt: now, UpdatedAt: now}
+	required1 := &Task{ID: "required-1", Name: "Required 1", CreatedAt: now, UpdatedAt: now}
+	required2 := &Task{ID: "required-2", Name: "Required 2", CreatedAt: now, UpdatedAt: now}
+	suggested1 := &Task{ID: "suggested-1", Name: "Suggested 1", CreatedAt: now, UpdatedAt: now}
+	suggested2 := &Task{ID: "suggested-2", Name: "Suggested 2", CreatedAt: now, UpdatedAt: now}
+
+	tests := []struct {
+		name               string
+		task               *Task
+		operation          string // "set_prerequisites", "set_downstream_required", "set_downstream_suggested"
+		inputTasks         []*Task
+		wantError          bool
+		errorContains      string
+		expectedIDs        []string
+		expectedTaskPtrs   []*Task
+		verifyOtherGetters bool // verify other getters return correct values
+	}{
+		// Prerequisites tests
+		{
+			name:             "set prerequisites with valid tasks",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_prerequisites",
+			inputTasks:       []*Task{prereq1, prereq2},
+			wantError:        false,
+			expectedIDs:      []string{"prereq-1", "prereq-2"},
+			expectedTaskPtrs: []*Task{prereq1, prereq2},
+		},
+		{
+			name:             "set prerequisites with single task",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_prerequisites",
+			inputTasks:       []*Task{prereq1},
+			wantError:        false,
+			expectedIDs:      []string{"prereq-1"},
+			expectedTaskPtrs: []*Task{prereq1},
+		},
+		{
+			name:             "set prerequisites with empty slice",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_prerequisites",
+			inputTasks:       []*Task{},
+			wantError:        false,
+			expectedIDs:      []string{},
+			expectedTaskPtrs: []*Task{},
+		},
+		{
+			name:          "set prerequisites on nil task",
+			task:          nil,
+			operation:     "set_prerequisites",
+			inputTasks:    []*Task{prereq1},
+			wantError:     true,
+			errorContains: "cannot set prerequisites on nil task",
+		},
+		{
+			name:          "set prerequisites with nil task in slice",
+			task:          &Task{ID: "task-1"},
+			operation:     "set_prerequisites",
+			inputTasks:    []*Task{prereq1, nil},
+			wantError:     true,
+			errorContains: "prerequisite task at index 1 is nil",
+		},
+
+		// Downstream Required tests
+		{
+			name:             "set downstream required with valid tasks",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_downstream_required",
+			inputTasks:       []*Task{required1, required2},
+			wantError:        false,
+			expectedIDs:      []string{"required-1", "required-2"},
+			expectedTaskPtrs: []*Task{required1, required2},
+		},
+		{
+			name:             "set downstream required with single task",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_downstream_required",
+			inputTasks:       []*Task{required1},
+			wantError:        false,
+			expectedIDs:      []string{"required-1"},
+			expectedTaskPtrs: []*Task{required1},
+		},
+		{
+			name:             "set downstream required with empty slice",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_downstream_required",
+			inputTasks:       []*Task{},
+			wantError:        false,
+			expectedIDs:      []string{},
+			expectedTaskPtrs: []*Task{},
+		},
+		{
+			name:          "set downstream required on nil task",
+			task:          nil,
+			operation:     "set_downstream_required",
+			inputTasks:    []*Task{required1},
+			wantError:     true,
+			errorContains: "cannot set downstream required on nil task",
+		},
+		{
+			name:          "set downstream required with nil task in slice",
+			task:          &Task{ID: "task-1"},
+			operation:     "set_downstream_required",
+			inputTasks:    []*Task{required1, nil, required2},
+			wantError:     true,
+			errorContains: "downstream required task at index 1 is nil",
+		},
+
+		// Downstream Suggested tests
+		{
+			name:             "set downstream suggested with valid tasks",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_downstream_suggested",
+			inputTasks:       []*Task{suggested1, suggested2},
+			wantError:        false,
+			expectedIDs:      []string{"suggested-1", "suggested-2"},
+			expectedTaskPtrs: []*Task{suggested1, suggested2},
+		},
+		{
+			name:             "set downstream suggested with single task",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_downstream_suggested",
+			inputTasks:       []*Task{suggested1},
+			wantError:        false,
+			expectedIDs:      []string{"suggested-1"},
+			expectedTaskPtrs: []*Task{suggested1},
+		},
+		{
+			name:             "set downstream suggested with empty slice",
+			task:             &Task{ID: "task-1"},
+			operation:        "set_downstream_suggested",
+			inputTasks:       []*Task{},
+			wantError:        false,
+			expectedIDs:      []string{},
+			expectedTaskPtrs: []*Task{},
+		},
+		{
+			name:          "set downstream suggested on nil task",
+			task:          nil,
+			operation:     "set_downstream_suggested",
+			inputTasks:    []*Task{suggested1},
+			wantError:     true,
+			errorContains: "cannot set downstream suggested on nil task",
+		},
+		{
+			name:          "set downstream suggested with nil task in slice",
+			task:          &Task{ID: "task-1"},
+			operation:     "set_downstream_suggested",
+			inputTasks:    []*Task{nil, suggested1},
+			wantError:     true,
+			errorContains: "downstream suggested task at index 0 is nil",
+		},
+
+		// Test that all getters work correctly after setting
+		{
+			name:               "verify all getters after setting prerequisites",
+			task:               &Task{ID: "task-1"},
+			operation:          "set_prerequisites",
+			inputTasks:         []*Task{prereq1, prereq2},
+			wantError:          false,
+			expectedIDs:        []string{"prereq-1", "prereq-2"},
+			expectedTaskPtrs:   []*Task{prereq1, prereq2},
+			verifyOtherGetters: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var err error
+
+			// Execute the setter operation
+			switch tt.operation {
+			case "set_prerequisites":
+				err = tt.task.SetPrerequisites(tt.inputTasks)
+			case "set_downstream_required":
+				err = tt.task.SetDownstreamRequired(tt.inputTasks)
+			case "set_downstream_suggested":
+				err = tt.task.SetDownstreamSuggested(tt.inputTasks)
+			default:
+				t.Fatalf("Unknown operation: %s", tt.operation)
+			}
+
+			// Check error expectations
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("Expected error but got nil")
+				} else if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("Error = %q, want error containing %q", err.Error(), tt.errorContains)
+				}
+				return // Don't check further assertions if we expected an error
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			// Verify the IDs and task pointers were set correctly
+			switch tt.operation {
+			case "set_prerequisites":
+				// Verify IDs
+				gotIDs := tt.task.GetPrerequisiteIDs()
+				if !equalStringSlices(gotIDs, tt.expectedIDs) {
+					t.Errorf("GetPrerequisiteIDs() = %v, want %v", gotIDs, tt.expectedIDs)
+				}
+
+				// Verify task pointers
+				gotTasks := tt.task.GetPrerequisites()
+				if !equalTaskSlices(gotTasks, tt.expectedTaskPtrs) {
+					t.Errorf("GetPrerequisites() returned different tasks than expected")
+				}
+
+			case "set_downstream_required":
+				// Verify IDs
+				gotIDs := tt.task.GetDownstreamRequiredIDs()
+				if !equalStringSlices(gotIDs, tt.expectedIDs) {
+					t.Errorf("GetDownstreamRequiredIDs() = %v, want %v", gotIDs, tt.expectedIDs)
+				}
+
+				// Verify task pointers
+				gotTasks := tt.task.GetDownstreamRequired()
+				if !equalTaskSlices(gotTasks, tt.expectedTaskPtrs) {
+					t.Errorf("GetDownstreamRequired() returned different tasks than expected")
+				}
+
+			case "set_downstream_suggested":
+				// Verify IDs
+				gotIDs := tt.task.GetDownstreamSuggestedIDs()
+				if !equalStringSlices(gotIDs, tt.expectedIDs) {
+					t.Errorf("GetDownstreamSuggestedIDs() = %v, want %v", gotIDs, tt.expectedIDs)
+				}
+
+				// Verify task pointers
+				gotTasks := tt.task.GetDownstreamSuggested()
+				if !equalTaskSlices(gotTasks, tt.expectedTaskPtrs) {
+					t.Errorf("GetDownstreamSuggested() returned different tasks than expected")
+				}
+			}
+
+			// Verify other getters return nil/empty when not set
+			if tt.verifyOtherGetters {
+				switch tt.operation {
+				case "set_prerequisites":
+					if tt.task.GetDownstreamRequired() != nil {
+						t.Errorf("GetDownstreamRequired() should be nil when not set")
+					}
+					if tt.task.GetDownstreamSuggested() != nil {
+						t.Errorf("GetDownstreamSuggested() should be nil when not set")
+					}
+				case "set_downstream_required":
+					if tt.task.GetPrerequisites() != nil {
+						t.Errorf("GetPrerequisites() should be nil when not set")
+					}
+					if tt.task.GetDownstreamSuggested() != nil {
+						t.Errorf("GetDownstreamSuggested() should be nil when not set")
+					}
+				case "set_downstream_suggested":
+					if tt.task.GetPrerequisites() != nil {
+						t.Errorf("GetPrerequisites() should be nil when not set")
+					}
+					if tt.task.GetDownstreamRequired() != nil {
+						t.Errorf("GetDownstreamRequired() should be nil when not set")
+					}
+				}
+			}
+		})
+	}
+
+	// Additional test: verify nil task getters
+	t.Run("getters on nil task return nil", func(t *testing.T) {
+		var nilTask *Task
+
+		if nilTask.GetPrerequisiteIDs() != nil {
+			t.Error("GetPrerequisiteIDs() on nil task should return nil")
+		}
+		if nilTask.GetDownstreamRequiredIDs() != nil {
+			t.Error("GetDownstreamRequiredIDs() on nil task should return nil")
+		}
+		if nilTask.GetDownstreamSuggestedIDs() != nil {
+			t.Error("GetDownstreamSuggestedIDs() on nil task should return nil")
+		}
+		if nilTask.GetPrerequisites() != nil {
+			t.Error("GetPrerequisites() on nil task should return nil")
+		}
+		if nilTask.GetDownstreamRequired() != nil {
+			t.Error("GetDownstreamRequired() on nil task should return nil")
+		}
+		if nilTask.GetDownstreamSuggested() != nil {
+			t.Error("GetDownstreamSuggested() on nil task should return nil")
+		}
+	})
+}
+
+// Helper function to compare string slices
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// Helper function to compare task slices (compares pointers)
+func equalTaskSlices(a, b []*Task) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}

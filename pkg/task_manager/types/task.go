@@ -147,6 +147,72 @@ func (t *Task) GetDownstreamSuggested() []*Task {
 	return t.DownstreamSuggested
 }
 
+// SetPrerequisites sets both the prerequisite task pointers and their IDs.
+// Extracts IDs from the provided tasks and updates both Prerequisites and PrerequisiteIDs.
+// Returns an error if the receiver is nil or if any task in the slice is nil.
+func (t *Task) SetPrerequisites(tasks []*Task) error {
+	if t == nil {
+		return fmt.Errorf("cannot set prerequisites on nil task")
+	}
+
+	// Extract IDs from tasks
+	ids := make([]string, len(tasks))
+	for i, task := range tasks {
+		if task == nil {
+			return fmt.Errorf("prerequisite task at index %d is nil", i)
+		}
+		ids[i] = task.ID
+	}
+
+	t.Prerequisites = tasks
+	t.PrerequisiteIDs = ids
+	return nil
+}
+
+// SetDownstreamRequired sets both the required downstream task pointers and their IDs.
+// Extracts IDs from the provided tasks and updates both DownstreamRequired and DownstreamRequiredIDs.
+// Returns an error if the receiver is nil or if any task in the slice is nil.
+func (t *Task) SetDownstreamRequired(tasks []*Task) error {
+	if t == nil {
+		return fmt.Errorf("cannot set downstream required on nil task")
+	}
+
+	// Extract IDs from tasks
+	ids := make([]string, len(tasks))
+	for i, task := range tasks {
+		if task == nil {
+			return fmt.Errorf("downstream required task at index %d is nil", i)
+		}
+		ids[i] = task.ID
+	}
+
+	t.DownstreamRequired = tasks
+	t.DownstreamRequiredIDs = ids
+	return nil
+}
+
+// SetDownstreamSuggested sets both the suggested downstream task pointers and their IDs.
+// Extracts IDs from the provided tasks and updates both DownstreamSuggested and DownstreamSuggestedIDs.
+// Returns an error if the receiver is nil or if any task in the slice is nil.
+func (t *Task) SetDownstreamSuggested(tasks []*Task) error {
+	if t == nil {
+		return fmt.Errorf("cannot set downstream suggested on nil task")
+	}
+
+	// Extract IDs from tasks
+	ids := make([]string, len(tasks))
+	for i, task := range tasks {
+		if task == nil {
+			return fmt.Errorf("downstream suggested task at index %d is nil", i)
+		}
+		ids[i] = task.ID
+	}
+
+	t.DownstreamSuggested = tasks
+	t.DownstreamSuggestedIDs = ids
+	return nil
+}
+
 // checkEdgeConsistency validates that a task slice and string slice conform.
 // The IDs in the string slice should match the IDs in the task slice (same set, any order).
 // Returns nil if consistent, or a descriptive error if inconsistent.
