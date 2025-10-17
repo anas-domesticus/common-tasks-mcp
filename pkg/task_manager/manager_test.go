@@ -336,3 +336,115 @@ func TestGetTask(t *testing.T) {
 		t.Errorf("Retrieved wrong task: expected task-2, got %s", retrievedTask2.ID)
 	}
 }
+
+func TestGetTasks(t *testing.T) {
+	manager := NewManager()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Add multiple tasks
+	task1 := &types.Task{
+		ID:          "task-1",
+		Name:        "Test Task 1",
+		Summary:     "First test task",
+		Description: "First task",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	task2 := &types.Task{
+		ID:          "task-2",
+		Name:        "Test Task 2",
+		Summary:     "Second test task",
+		Description: "Second task",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	task3 := &types.Task{
+		ID:          "task-3",
+		Name:        "Test Task 3",
+		Summary:     "Third test task",
+		Description: "Third task",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	if err := manager.AddTask(task1); err != nil {
+		t.Fatalf("Failed to add task1: %v", err)
+	}
+	if err := manager.AddTask(task2); err != nil {
+		t.Fatalf("Failed to add task2: %v", err)
+	}
+	if err := manager.AddTask(task3); err != nil {
+		t.Fatalf("Failed to add task3: %v", err)
+	}
+
+	// Test retrieving multiple existing tasks
+	tasks, err := manager.getTasks([]string{"task-1", "task-3"})
+	if err != nil {
+		t.Fatalf("Expected no error when retrieving existing tasks, got: %v", err)
+	}
+	if len(tasks) != 2 {
+		t.Errorf("Expected 2 tasks, got %d", len(tasks))
+	}
+	if tasks[0].ID != "task-1" {
+		t.Errorf("Expected first task to be task-1, got %s", tasks[0].ID)
+	}
+	if tasks[1].ID != "task-3" {
+		t.Errorf("Expected second task to be task-3, got %s", tasks[1].ID)
+	}
+
+	// Test retrieving all tasks
+	allTasks, err := manager.getTasks([]string{"task-1", "task-2", "task-3"})
+	if err != nil {
+		t.Fatalf("Expected no error when retrieving all tasks, got: %v", err)
+	}
+	if len(allTasks) != 3 {
+		t.Errorf("Expected 3 tasks, got %d", len(allTasks))
+	}
+
+	// Test retrieving with empty slice
+	emptyTasks, err := manager.getTasks([]string{})
+	if err != nil {
+		t.Fatalf("Expected no error when retrieving with empty slice, got: %v", err)
+	}
+	if len(emptyTasks) != 0 {
+		t.Errorf("Expected 0 tasks, got %d", len(emptyTasks))
+	}
+
+	// Test retrieving with some non-existent tasks
+	tasks, err = manager.getTasks([]string{"task-1", "non-existent", "task-2"})
+	if err == nil {
+		t.Error("Expected error when some tasks don't exist, got nil")
+	}
+	// Should still return the found tasks
+	if len(tasks) != 2 {
+		t.Errorf("Expected 2 found tasks even with error, got %d", len(tasks))
+	}
+	if tasks[0].ID != "task-1" {
+		t.Errorf("Expected first task to be task-1, got %s", tasks[0].ID)
+	}
+	if tasks[1].ID != "task-2" {
+		t.Errorf("Expected second task to be task-2, got %s", tasks[1].ID)
+	}
+
+	// Test retrieving with all non-existent tasks
+	tasks, err = manager.getTasks([]string{"non-existent-1", "non-existent-2"})
+	if err == nil {
+		t.Error("Expected error when all tasks don't exist, got nil")
+	}
+	if len(tasks) != 0 {
+		t.Errorf("Expected 0 tasks when all are non-existent, got %d", len(tasks))
+	}
+
+	// Test retrieving with empty ID in slice
+	_, err = manager.getTasks([]string{"task-1", "", "task-2"})
+	if err == nil {
+		t.Error("Expected error when ID list contains empty string, got nil")
+	} else if err.Error() != "task ID cannot be empty" {
+		t.Errorf("Expected 'task ID cannot be empty' error, got: %v", err)
+	}
+}

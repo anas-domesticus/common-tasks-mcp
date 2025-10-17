@@ -54,6 +54,54 @@ func (m *Manager) GetTask(id string) (*types.Task, error) {
 	return task, nil
 }
 
+// getTasks retrieves multiple tasks by their IDs
+func (m *Manager) getTasks(ids []string) ([]*types.Task, error) {
+	if len(ids) == 0 {
+		return []*types.Task{}, nil
+	}
+
+	tasks := make([]*types.Task, 0, len(ids))
+	var notFound []string
+
+	for _, id := range ids {
+		if id == "" {
+			return nil, fmt.Errorf("task ID cannot be empty")
+		}
+
+		task, exists := m.tasks[id]
+		if !exists {
+			notFound = append(notFound, id)
+			continue
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	if len(notFound) > 0 {
+		return tasks, fmt.Errorf("tasks not found: %v", notFound)
+	}
+
+	return tasks, nil
+}
+
+// GetDependencies retrieves all dependency tasks for the given task
+func (m *Manager) GetDependencies(task *types.Task) ([]*types.Task, error) {
+	if task == nil {
+		return nil, fmt.Errorf("task cannot be nil")
+	}
+
+	return m.getTasks(task.Dependencies)
+}
+
+// GetDependents retrieves all dependent tasks for the given task
+func (m *Manager) GetDependents(task *types.Task) ([]*types.Task, error) {
+	if task == nil {
+		return nil, fmt.Errorf("task cannot be nil")
+	}
+
+	return m.getTasks(task.Dependents)
+}
+
 // Load reads all YAML files from the specified directory and loads tasks
 func (m *Manager) Load(dirPath string) error {
 	// Check if directory exists
