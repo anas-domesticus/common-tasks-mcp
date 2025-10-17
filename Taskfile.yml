@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  serve:
+    desc: Start the MCP server
+    cmds:
+      - go run ./cli/mcp serve
+
+  test:
+    desc: Run unit tests
+    cmds:
+      - go test ./...

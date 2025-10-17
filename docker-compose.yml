@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: common-tasks-mcp
+    environment:
+      # Transport mode: stdio or http
+      MCP_TRANSPORT: http
+      # HTTP port (only used when transport is http)
+      MCP_HTTP_PORT: 8080
+      # Directory where tasks are stored
+      MCP_DIRECTORY: /data
+      # Enable verbose logging
+      MCP_VERBOSE: "false"
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount the tasks directory
+      - tasks-data:/data
+    restart: unless-stopped
+
+volumes:
+  tasks-data:
