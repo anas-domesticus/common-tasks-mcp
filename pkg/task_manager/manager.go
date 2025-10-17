@@ -24,7 +24,8 @@ func NewManager() *Manager {
 	}
 }
 
-// AddTask adds a task to the manager
+// AddTask adds a task to the manager.
+// It uses a clone-validate-commit pattern to ensure the addition doesn't introduce cycles.
 func (m *Manager) AddTask(task *types.Task) error {
 	if task == nil {
 		return fmt.Errorf("task cannot be nil")
@@ -36,6 +37,18 @@ func (m *Manager) AddTask(task *types.Task) error {
 		return fmt.Errorf("task with ID %s already exists", task.ID)
 	}
 
+	// Clone the manager to test the addition
+	testManager := m.Clone()
+
+	// Perform the addition in the test manager
+	testManager.tasks[task.ID] = task
+
+	// Check for cycles in the test manager
+	if err := testManager.DetectCycles(); err != nil {
+		return fmt.Errorf("addition would introduce cycle: %w", err)
+	}
+
+	// If no cycles detected, commit the addition to the original manager
 	m.tasks[task.ID] = task
 	return nil
 }

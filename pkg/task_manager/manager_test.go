@@ -222,6 +222,87 @@ func TestAddTask(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "add task that creates cycle - simple two-task cycle",
+			setupTasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					Summary:               "First task",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-b"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			taskToAdd: &types.Task{
+				ID:                    "task-b",
+				Name:                  "Task B",
+				Summary:               "Second task that creates a cycle",
+				PrerequisiteIDs:       []string{"task-a"},
+				DownstreamRequiredIDs: []string{"task-a"}, // This creates a cycle: A -> B -> A
+				CreatedAt:             now,
+				UpdatedAt:             now,
+			},
+			wantError:     true,
+			expectedError: "cycle",
+			expectedCount: 1, // task-b should not be added
+		},
+		{
+			name: "add task that creates cycle - three-task cycle",
+			setupTasks: []*types.Task{
+				{
+					ID:                    "task-x",
+					Name:                  "Task X",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-y"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-y",
+					Name:                  "Task Y",
+					PrerequisiteIDs:       []string{"task-x"},
+					DownstreamRequiredIDs: []string{"task-z"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			taskToAdd: &types.Task{
+				ID:                    "task-z",
+				Name:                  "Task Z",
+				Summary:               "Third task that completes a cycle",
+				PrerequisiteIDs:       []string{"task-y"},
+				DownstreamRequiredIDs: []string{"task-x"}, // This creates a cycle: X -> Y -> Z -> X
+				CreatedAt:             now,
+				UpdatedAt:             now,
+			},
+			wantError:     true,
+			expectedError: "cycle",
+			expectedCount: 2, // task-z should not be added
+		},
+		{
+			name: "add task with self-cycle",
+			setupTasks: []*types.Task{
+				{
+					ID:        "task-1",
+					Name:      "Task 1",
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+			},
+			taskToAdd: &types.Task{
+				ID:                    "task-self",
+				Name:                  "Self-referencing Task",
+				PrerequisiteIDs:       []string{"task-self"}, // Self-cycle
+				DownstreamRequiredIDs: []string{},
+				CreatedAt:             now,
+				UpdatedAt:             now,
+			},
+			wantError:     true,
+			expectedError: "cycle",
+			expectedCount: 1, // task-self should not be added
+		},
 	}
 
 	for _, tt := range tests {
@@ -242,8 +323,8 @@ func TestAddTask(t *testing.T) {
 			if tt.wantError {
 				if err == nil {
 					t.Errorf("Expected error containing %q, got nil", tt.expectedError)
-				} else if tt.expectedError != "" && err.Error() != tt.expectedError {
-					t.Errorf("Expected error %q, got %q", tt.expectedError, err.Error())
+				} else if tt.expectedError != "" && !contains(err.Error(), tt.expectedError) {
+					t.Errorf("Expected error containing %q, got %q", tt.expectedError, err.Error())
 				}
 			} else {
 				if err != nil {
@@ -1705,11 +1786,10 @@ func TestDetectCycles(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewManager()
 
-			// Add all tasks to the manager
+			// Add all tasks to the manager directly (bypassing AddTask validation
+			// since we're testing DetectCycles itself and need to create invalid graphs)
 			for _, task := range tt.tasks {
-				if err := manager.AddTask(task); err != nil {
-					t.Fatalf("Failed to add task %s: %v", task.ID, err)
-				}
+				manager.tasks[task.ID] = task
 			}
 
 			// Check for cycles
