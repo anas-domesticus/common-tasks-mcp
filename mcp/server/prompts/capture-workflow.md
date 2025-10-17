@@ -29,13 +29,27 @@ Capture tasks when you:
 1. **Check if task exists**: List tasks to see if this workflow is already captured
 2. **Create or update**:
    - Create new task if this is a novel workflow
-   - Update existing task if you found the command has changed
+   - Update existing task if you found the command has changed - **but you MUST provide evidence** (see below)
 3. **Connect the workflow**: Add prerequisite/downstream relationships based on what you actually did
 4. **Keep it simple**: Command + relevant paths. No need to explain why or document edge cases
+
+### Evidence Required for Updates
+
+When updating an existing task, you MUST provide evidence from the codebase that justifies the change:
+- **Command changes**: Show recent commits, updated build files (Makefile, Taskfile.yml, package.json), or output from running both old and new commands
+- **Description changes**: Reference documentation updates, code changes, or commit messages
+- **Relationship changes**: Demonstrate the new workflow order through actual usage, CI/CD changes, or script modifications
+
+Do NOT update tasks based on:
+- ❌ Speculation about what might work better
+- ❌ Assumptions about how things should be done
+- ❌ Personal preferences without codebase evidence
+- ❌ Changes you haven't actually verified
 
 ## Guidelines
 
 - **Capture what you actually did**, not what the docs say or what you think should happen
+- **Verify before capturing**: If creating a task proactively (not based on a command you just ran), verify non-destructive commands work before adding them to the task system
 - **One task = one command** (or one clear atomic operation)
 - **Use the exact command** with the exact flags and paths you used
 - **Don't overthink it**: If you ran it twice, it's probably worth capturing
@@ -63,6 +77,7 @@ Capture tasks when you:
 ❌ Don't add detailed explanations or documentation to descriptions
 ❌ Don't capture commands you only ran once for a unique situation
 ❌ Don't create tasks based on what you think developers might need
+❌ Don't update existing tasks without evidence from the codebase justifying the change
 
 ## Remember
 

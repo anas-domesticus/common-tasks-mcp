@@ -11,6 +11,10 @@ Create tasks for workflows that developers perform repeatedly, such as:
 - Deployment workflows
 - Development setup steps
 - Git/commit workflows
+- Documentation updates (updating README.md, API docs, CONTRIBUTING.md)
+- CI/CD workflow updates (modifying GitHub Actions, GitLab CI, CircleCI configs)
+
+**Good starting points**: Tasks for updating documentation (README.md, CONTRIBUTING.md), updating CI flows (.github/workflows/, .gitlab-ci.yml), and other change-related workflows are excellent foundational tasks to create first, as these represent common operations that accompany most development work.
 
 ## What NOT to Create
 
@@ -64,14 +68,16 @@ Each task should include:
 ## Guidelines
 
 1. **Use actual commands** from the codebase (exact paths, tool versions if specified)
-2. **Create workflows** - connect related tasks with prerequisites/downstream
-3. **Be specific** - include flags, arguments, paths from the project
-4. **Think about order** - what must happen before/after each task?
-5. **Cover common scenarios** - what do developers do daily? weekly? on release?
-6. **Keep tags simple** - prefer clear, single-word tags (cicd, k8s, go, java, build). Don't overuse tags; only add new ones when necessary for clarity and organization. Aim for 2-4 tags per task.
-7. **Include directory paths** - mention specific directories in task descriptions to help LLMs navigate directly to relevant code locations (e.g., "Tests are located in pkg/task_manager/" or "Configuration files in config/"). DO NOT list the contents of files or enumerate what's inside directories - just provide the paths for navigation.
-8. **Keep tasks atomic** - each task should be a single, discrete operation. Don't create meta-tasks that just aggregate other tasks. The DAG relationships express workflows naturally without needing umbrella tasks.
-9. **Keep descriptions concise** - focus on what the task does and where relevant files are located. Avoid listing file contents, dependency versions, environment variables, or other detailed configuration unless absolutely necessary to run the command.
+2. **Verify commands before adding tasks** - for non-destructive tasks (tests, builds, formatters, linters), run the command first to verify it works before creating the task. This ensures you're documenting real, working workflows.
+3. **Create workflows** - connect related tasks with prerequisites/downstream
+4. **Be specific** - include flags, arguments, paths from the project
+5. **Think about order** - what must happen before/after each task?
+6. **Cover common scenarios** - what do developers do daily? weekly? on release?
+7. **Keep tags simple** - prefer clear, single-word tags (cicd, k8s, go, java, build). Don't overuse tags; only add new ones when necessary for clarity and organization. Aim for 2-4 tags per task.
+8. **Include directory paths** - mention specific directories in task descriptions to help LLMs navigate directly to relevant code locations (e.g., "Tests are located in pkg/task_manager/" or "Configuration files in config/"). DO NOT list the contents of files or enumerate what's inside directories - just provide the paths for navigation.
+9. **Keep tasks atomic** - each task should be a single, discrete operation. Don't create meta-tasks that just aggregate other tasks. The DAG relationships express workflows naturally without needing umbrella tasks.
+10. **Keep descriptions concise** - focus on what the task does and where relevant files are located. Avoid listing file contents, dependency versions, environment variables, or other detailed configuration unless absolutely necessary to run the command.
+11. **Require evidence for changes** - when modifying existing tasks (updating commands, changing descriptions, or altering relationships), you MUST provide evidence from the codebase that justifies the change. Evidence includes: recent commits showing the change, updated documentation, modified build files, or actual command execution showing the new behavior. Do not modify tasks based on speculation or assumptions.
 
 ## Example Task Relationships
 
