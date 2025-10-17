@@ -249,3 +249,90 @@ func TestAddTask(t *testing.T) {
 		t.Errorf("Expected 2 tasks in manager, got %d", len(manager.tasks))
 	}
 }
+
+func TestGetTask(t *testing.T) {
+	manager := NewManager()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Add a task to the manager
+	task1 := &types.Task{
+		ID:          "task-1",
+		Name:        "Test Task 1",
+		Summary:     "First test task",
+		Description: "A task to retrieve",
+		Tags:        []string{"test", "retrieval"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	if err := manager.AddTask(task1); err != nil {
+		t.Fatalf("Failed to add task: %v", err)
+	}
+
+	// Test retrieving an existing task
+	retrievedTask, err := manager.GetTask("task-1")
+	if err != nil {
+		t.Fatalf("Expected no error when retrieving existing task, got: %v", err)
+	}
+	if retrievedTask == nil {
+		t.Fatal("Retrieved task is nil")
+	}
+	if retrievedTask.ID != task1.ID {
+		t.Errorf("Retrieved task ID mismatch: expected %s, got %s", task1.ID, retrievedTask.ID)
+	}
+	if retrievedTask.Name != task1.Name {
+		t.Errorf("Retrieved task Name mismatch: expected %s, got %s", task1.Name, retrievedTask.Name)
+	}
+	if retrievedTask.Summary != task1.Summary {
+		t.Errorf("Retrieved task Summary mismatch: expected %s, got %s", task1.Summary, retrievedTask.Summary)
+	}
+
+	// Test retrieving a non-existent task
+	_, err = manager.GetTask("non-existent")
+	if err == nil {
+		t.Error("Expected error when retrieving non-existent task, got nil")
+	} else if err.Error() != "task with ID non-existent not found" {
+		t.Errorf("Expected 'task not found' error, got: %v", err)
+	}
+
+	// Test retrieving with empty ID
+	_, err = manager.GetTask("")
+	if err == nil {
+		t.Error("Expected error when retrieving with empty ID, got nil")
+	} else if err.Error() != "task ID cannot be empty" {
+		t.Errorf("Expected 'task ID cannot be empty' error, got: %v", err)
+	}
+
+	// Add another task and verify both can be retrieved
+	task2 := &types.Task{
+		ID:          "task-2",
+		Name:        "Test Task 2",
+		Summary:     "Second test task",
+		Description: "Another task to retrieve",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	if err := manager.AddTask(task2); err != nil {
+		t.Fatalf("Failed to add second task: %v", err)
+	}
+
+	// Verify we can still retrieve the first task
+	retrievedTask1, err := manager.GetTask("task-1")
+	if err != nil {
+		t.Fatalf("Failed to retrieve task-1 after adding task-2: %v", err)
+	}
+	if retrievedTask1.ID != "task-1" {
+		t.Errorf("Retrieved wrong task: expected task-1, got %s", retrievedTask1.ID)
+	}
+
+	// Verify we can retrieve the second task
+	retrievedTask2, err := manager.GetTask("task-2")
+	if err != nil {
+		t.Fatalf("Failed to retrieve task-2: %v", err)
+	}
+	if retrievedTask2.ID != "task-2" {
+		t.Errorf("Retrieved wrong task: expected task-2, got %s", retrievedTask2.ID)
+	}
+}

@@ -40,6 +40,20 @@ func (m *Manager) AddTask(task *types.Task) error {
 	return nil
 }
 
+// GetTask retrieves a task by ID
+func (m *Manager) GetTask(id string) (*types.Task, error) {
+	if id == "" {
+		return nil, fmt.Errorf("task ID cannot be empty")
+	}
+
+	task, exists := m.tasks[id]
+	if !exists {
+		return nil, fmt.Errorf("task with ID %s not found", id)
+	}
+
+	return task, nil
+}
+
 // Load reads all YAML files from the specified directory and loads tasks
 func (m *Manager) Load(dirPath string) error {
 	// Check if directory exists
