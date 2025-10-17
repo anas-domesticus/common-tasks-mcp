@@ -361,3 +361,86 @@ func (t *Task) CheckEdgeConsistency() error {
 
 	return errors.Join(errs...)
 }
+
+// collectTasksRecursive recursively collects all tasks reachable through the given getter function.
+// It uses a visited map to avoid infinite loops in case of cycles (though DAGs should not have cycles).
+// The getter function should return the task slice to traverse (e.g., Prerequisites, DownstreamRequired, etc.).
+func collectTasksRecursive(tasks []*Task, getter func(*Task) []*Task, visited map[string]bool, result *[]*Task) {
+	for _, task := range tasks {
+		if task == nil {
+			continue
+		}
+
+		// Skip if already visited to avoid infinite loops
+		if visited[task.ID] {
+			continue
+		}
+
+		// Mark as visited and add to result
+		visited[task.ID] = true
+		*result = append(*result, task)
+
+		// Recursively traverse the next level
+		nextTasks := getter(task)
+		if len(nextTasks) > 0 {
+			collectTasksRecursive(nextTasks, getter, visited, result)
+		}
+	}
+}
+
+// GetAllPrerequisites recursively collects all prerequisite tasks in the entire chain.
+// For example, if task A has prerequisite B, and B has prerequisite C, this returns [B, C].
+// The order is breadth-first traversal through the prerequisite chain.
+// Returns an empty slice if there are no prerequisites or if the receiver is nil.
+func (t *Task) GetAllPrerequisites() []*Task {
+	if t == nil || len(t.Prerequisites) == 0 {
+		return []*Task{}
+	}
+
+	visited := make(map[string]bool)
+	result := make([]*Task, 0)
+
+	collectTasksRecursive(t.Prerequisites, func(task *Task) []*Task {
+		return task.Prerequisites
+	}, visited, &result)
+
+	return result
+}
+
+// GetAllDownstreamRequired recursively collects all required downstream tasks in the entire chain.
+// For example, if task A has required downstream B, and B has required downstream C, this returns [B, C].
+// The order is breadth-first traversal through the downstream required chain.
+// Returns an empty slice if there are no required downstream tasks or if the receiver is nil.
+func (t *Task) GetAllDownstreamRequired() []*Task {
+	if t == nil || len(t.DownstreamRequired) == 0 {
+		return []*Task{}
+	}
+
+	visited := make(map[string]bool)
+	result := make([]*Task, 0)
+
+	collectTasksRecursive(t.DownstreamRequired, func(task *Task) []*Task {
+		return task.DownstreamRequired
+	}, visited, &result)
+
+	return result
+}
+
+// GetAllDownstreamSuggested recursively collects all suggested downstream tasks in the entire chain.
+// For example, if task A has suggested downstream B, and B has suggested downstream C, this returns [B, C].
+// The order is breadth-first traversal through the downstream suggested chain.
+// Returns an empty slice if there are no suggested downstream tasks or if the receiver is nil.
+func (t *Task) GetAllDownstreamSuggested() []*Task {
+	if t == nil || len(t.DownstreamSuggested) == 0 {
+		return []*Task{}
+	}
+
+	visited := make(map[string]bool)
+	result := make([]*Task, 0)
+
+	collectTasksRecursive(t.DownstreamSuggested, func(task *Task) []*Task {
+		return task.DownstreamSuggested
+	}, visited, &result)
+
+	return result
+}

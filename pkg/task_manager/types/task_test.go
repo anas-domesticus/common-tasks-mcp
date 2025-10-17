@@ -1466,3 +1466,333 @@ func equalTaskSlices(a, b []*Task) bool {
 	}
 	return true
 }
+
+func TestTask_GetAllPrerequisites(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+
+	tests := []struct {
+		name          string
+		setupGraph    func() *Task
+		expectedIDs   []string
+		expectedCount int
+	}{
+		{
+			name: "nil task returns empty slice",
+			setupGraph: func() *Task {
+				return nil
+			},
+			expectedIDs:   []string{},
+			expectedCount: 0,
+		},
+		{
+			name: "task with no prerequisites returns empty slice",
+			setupGraph: func() *Task {
+				task := &Task{ID: "task-a", Name: "Task A", CreatedAt: now, UpdatedAt: now}
+				return task
+			},
+			expectedIDs:   []string{},
+			expectedCount: 0,
+		},
+		{
+			name: "task with single level prerequisites",
+			setupGraph: func() *Task {
+				prereq1 := &Task{ID: "prereq-1", Name: "Prerequisite 1", CreatedAt: now, UpdatedAt: now}
+				prereq2 := &Task{ID: "prereq-2", Name: "Prerequisite 2", CreatedAt: now, UpdatedAt: now}
+				task := &Task{ID: "task-a", Name: "Task A", CreatedAt: now, UpdatedAt: now}
+				task.Prerequisites = []*Task{prereq1, prereq2}
+				return task
+			},
+			expectedIDs:   []string{"prereq-1", "prereq-2"},
+			expectedCount: 2,
+		},
+		{
+			name: "task with two-level chain: A -> B -> C",
+			setupGraph: func() *Task {
+				taskC := &Task{ID: "task-c", Name: "Task C", CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", Prerequisites: []*Task{taskC}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", Prerequisites: []*Task{taskB}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c"},
+			expectedCount: 2,
+		},
+		{
+			name: "task with three-level chain: A -> B -> C -> D",
+			setupGraph: func() *Task {
+				taskD := &Task{ID: "task-d", Name: "Task D", CreatedAt: now, UpdatedAt: now}
+				taskC := &Task{ID: "task-c", Name: "Task C", Prerequisites: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", Prerequisites: []*Task{taskC}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", Prerequisites: []*Task{taskB}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c", "task-d"},
+			expectedCount: 3,
+		},
+		{
+			name: "task with diamond pattern (shared prerequisite)",
+			setupGraph: func() *Task {
+				// A depends on B and C, both B and C depend on D
+				taskD := &Task{ID: "task-d", Name: "Task D", CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", Prerequisites: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskC := &Task{ID: "task-c", Name: "Task C", Prerequisites: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", Prerequisites: []*Task{taskB, taskC}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c", "task-d"},
+			expectedCount: 3, // task-d should only appear once
+		},
+		{
+			name: "complex graph with multiple paths",
+			setupGraph: func() *Task {
+				// E -> {D, C}, D -> {B, A}, C -> B, B -> A
+				taskA := &Task{ID: "task-a", Name: "Task A", CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", Prerequisites: []*Task{taskA}, CreatedAt: now, UpdatedAt: now}
+				taskC := &Task{ID: "task-c", Name: "Task C", Prerequisites: []*Task{taskB}, CreatedAt: now, UpdatedAt: now}
+				taskD := &Task{ID: "task-d", Name: "Task D", Prerequisites: []*Task{taskB, taskA}, CreatedAt: now, UpdatedAt: now}
+				taskE := &Task{ID: "task-e", Name: "Task E", Prerequisites: []*Task{taskD, taskC}, CreatedAt: now, UpdatedAt: now}
+				return taskE
+			},
+			expectedIDs:   []string{"task-d", "task-c", "task-b", "task-a"},
+			expectedCount: 4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := tt.setupGraph()
+			result := task.GetAllPrerequisites()
+
+			if len(result) != tt.expectedCount {
+				t.Errorf("GetAllPrerequisites() count = %d, want %d", len(result), tt.expectedCount)
+			}
+
+			// Build a set of returned IDs
+			returnedIDs := make(map[string]bool)
+			for _, task := range result {
+				returnedIDs[task.ID] = true
+			}
+
+			// Verify all expected IDs are present
+			for _, expectedID := range tt.expectedIDs {
+				if !returnedIDs[expectedID] {
+					t.Errorf("GetAllPrerequisites() missing expected ID: %s", expectedID)
+				}
+			}
+
+			// Verify no unexpected IDs are present
+			if len(returnedIDs) != len(tt.expectedIDs) {
+				t.Errorf("GetAllPrerequisites() returned %d unique IDs, want %d", len(returnedIDs), len(tt.expectedIDs))
+			}
+		})
+	}
+}
+
+func TestTask_GetAllDownstreamRequired(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+
+	tests := []struct {
+		name          string
+		setupGraph    func() *Task
+		expectedIDs   []string
+		expectedCount int
+	}{
+		{
+			name: "nil task returns empty slice",
+			setupGraph: func() *Task {
+				return nil
+			},
+			expectedIDs:   []string{},
+			expectedCount: 0,
+		},
+		{
+			name: "task with no downstream required returns empty slice",
+			setupGraph: func() *Task {
+				task := &Task{ID: "task-a", Name: "Task A", CreatedAt: now, UpdatedAt: now}
+				return task
+			},
+			expectedIDs:   []string{},
+			expectedCount: 0,
+		},
+		{
+			name: "task with single level downstream required",
+			setupGraph: func() *Task {
+				downstream1 := &Task{ID: "downstream-1", Name: "Downstream 1", CreatedAt: now, UpdatedAt: now}
+				downstream2 := &Task{ID: "downstream-2", Name: "Downstream 2", CreatedAt: now, UpdatedAt: now}
+				task := &Task{ID: "task-a", Name: "Task A", DownstreamRequired: []*Task{downstream1, downstream2}, CreatedAt: now, UpdatedAt: now}
+				return task
+			},
+			expectedIDs:   []string{"downstream-1", "downstream-2"},
+			expectedCount: 2,
+		},
+		{
+			name: "task with two-level chain: A -> B -> C",
+			setupGraph: func() *Task {
+				taskC := &Task{ID: "task-c", Name: "Task C", CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", DownstreamRequired: []*Task{taskC}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", DownstreamRequired: []*Task{taskB}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c"},
+			expectedCount: 2,
+		},
+		{
+			name: "task with three-level chain: A -> B -> C -> D",
+			setupGraph: func() *Task {
+				taskD := &Task{ID: "task-d", Name: "Task D", CreatedAt: now, UpdatedAt: now}
+				taskC := &Task{ID: "task-c", Name: "Task C", DownstreamRequired: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", DownstreamRequired: []*Task{taskC}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", DownstreamRequired: []*Task{taskB}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c", "task-d"},
+			expectedCount: 3,
+		},
+		{
+			name: "task with diamond pattern (converging downstream)",
+			setupGraph: func() *Task {
+				// A -> {B, C}, both B and C -> D
+				taskD := &Task{ID: "task-d", Name: "Task D", CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", DownstreamRequired: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskC := &Task{ID: "task-c", Name: "Task C", DownstreamRequired: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", DownstreamRequired: []*Task{taskB, taskC}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c", "task-d"},
+			expectedCount: 3, // task-d should only appear once
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := tt.setupGraph()
+			result := task.GetAllDownstreamRequired()
+
+			if len(result) != tt.expectedCount {
+				t.Errorf("GetAllDownstreamRequired() count = %d, want %d", len(result), tt.expectedCount)
+			}
+
+			// Build a set of returned IDs
+			returnedIDs := make(map[string]bool)
+			for _, task := range result {
+				returnedIDs[task.ID] = true
+			}
+
+			// Verify all expected IDs are present
+			for _, expectedID := range tt.expectedIDs {
+				if !returnedIDs[expectedID] {
+					t.Errorf("GetAllDownstreamRequired() missing expected ID: %s", expectedID)
+				}
+			}
+
+			// Verify no unexpected IDs are present
+			if len(returnedIDs) != len(tt.expectedIDs) {
+				t.Errorf("GetAllDownstreamRequired() returned %d unique IDs, want %d", len(returnedIDs), len(tt.expectedIDs))
+			}
+		})
+	}
+}
+
+func TestTask_GetAllDownstreamSuggested(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+
+	tests := []struct {
+		name          string
+		setupGraph    func() *Task
+		expectedIDs   []string
+		expectedCount int
+	}{
+		{
+			name: "nil task returns empty slice",
+			setupGraph: func() *Task {
+				return nil
+			},
+			expectedIDs:   []string{},
+			expectedCount: 0,
+		},
+		{
+			name: "task with no downstream suggested returns empty slice",
+			setupGraph: func() *Task {
+				task := &Task{ID: "task-a", Name: "Task A", CreatedAt: now, UpdatedAt: now}
+				return task
+			},
+			expectedIDs:   []string{},
+			expectedCount: 0,
+		},
+		{
+			name: "task with single level downstream suggested",
+			setupGraph: func() *Task {
+				suggested1 := &Task{ID: "suggested-1", Name: "Suggested 1", CreatedAt: now, UpdatedAt: now}
+				suggested2 := &Task{ID: "suggested-2", Name: "Suggested 2", CreatedAt: now, UpdatedAt: now}
+				task := &Task{ID: "task-a", Name: "Task A", DownstreamSuggested: []*Task{suggested1, suggested2}, CreatedAt: now, UpdatedAt: now}
+				return task
+			},
+			expectedIDs:   []string{"suggested-1", "suggested-2"},
+			expectedCount: 2,
+		},
+		{
+			name: "task with two-level chain: A -> B -> C",
+			setupGraph: func() *Task {
+				taskC := &Task{ID: "task-c", Name: "Task C", CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", DownstreamSuggested: []*Task{taskC}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", DownstreamSuggested: []*Task{taskB}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c"},
+			expectedCount: 2,
+		},
+		{
+			name: "task with three-level chain: A -> B -> C -> D",
+			setupGraph: func() *Task {
+				taskD := &Task{ID: "task-d", Name: "Task D", CreatedAt: now, UpdatedAt: now}
+				taskC := &Task{ID: "task-c", Name: "Task C", DownstreamSuggested: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", DownstreamSuggested: []*Task{taskC}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", DownstreamSuggested: []*Task{taskB}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c", "task-d"},
+			expectedCount: 3,
+		},
+		{
+			name: "task with diamond pattern (converging downstream)",
+			setupGraph: func() *Task {
+				// A -> {B, C}, both B and C -> D
+				taskD := &Task{ID: "task-d", Name: "Task D", CreatedAt: now, UpdatedAt: now}
+				taskB := &Task{ID: "task-b", Name: "Task B", DownstreamSuggested: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskC := &Task{ID: "task-c", Name: "Task C", DownstreamSuggested: []*Task{taskD}, CreatedAt: now, UpdatedAt: now}
+				taskA := &Task{ID: "task-a", Name: "Task A", DownstreamSuggested: []*Task{taskB, taskC}, CreatedAt: now, UpdatedAt: now}
+				return taskA
+			},
+			expectedIDs:   []string{"task-b", "task-c", "task-d"},
+			expectedCount: 3, // task-d should only appear once
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := tt.setupGraph()
+			result := task.GetAllDownstreamSuggested()
+
+			if len(result) != tt.expectedCount {
+				t.Errorf("GetAllDownstreamSuggested() count = %d, want %d", len(result), tt.expectedCount)
+			}
+
+			// Build a set of returned IDs
+			returnedIDs := make(map[string]bool)
+			for _, task := range result {
+				returnedIDs[task.ID] = true
+			}
+
+			// Verify all expected IDs are present
+			for _, expectedID := range tt.expectedIDs {
+				if !returnedIDs[expectedID] {
+					t.Errorf("GetAllDownstreamSuggested() missing expected ID: %s", expectedID)
+				}
+			}
+
+			// Verify no unexpected IDs are present
+			if len(returnedIDs) != len(tt.expectedIDs) {
+				t.Errorf("GetAllDownstreamSuggested() returned %d unique IDs, want %d", len(returnedIDs), len(tt.expectedIDs))
+			}
+		})
+	}
+}
