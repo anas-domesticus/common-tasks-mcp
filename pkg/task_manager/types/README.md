@@ -7,7 +7,7 @@ This package defines the core data structures for task management, with a focus 
 The task system is built around **three distinct Directed Acyclic Graphs (DAGs)** that share the same nodes (tasks) but represent different types of relationships:
 
 1. **Prerequisites** - Tasks that must be completed before/as part of this task
-2. **Downstream Tasks** - Tasks that must be completed after this task
+2. **Required Downstream Tasks** - Tasks that must be completed after this task
 3. **Suggested Downstream Tasks** - Tasks that are recommended or related, but optional
 
 All three graphs must be acyclic to maintain a valid task system.
@@ -28,9 +28,9 @@ Prerequisites represent tasks that **must be completed before** or **are compone
 
 Task A is **blocked** and cannot start until both Task X and Task Y are completed.
 
-### 2. Downstream Tasks (DAG #2)
+### 2. Required Downstream Tasks (DAG #2)
 
-Downstream tasks are tasks that **must be completed after** the current task finishes. These represent mandatory follow-up actions that are triggered by or necessitated by completing the current task.
+Required downstream tasks are tasks that **must be completed after** the current task finishes. These represent mandatory follow-up actions that are triggered by or necessitated by completing the current task.
 
 - **Field**: `DownstreamRequiredIDs` (persisted) / `DownstreamRequired` (resolved pointers)
 - **Meaning**: "These tasks must be done after this task completes"
@@ -38,7 +38,7 @@ Downstream tasks are tasks that **must be completed after** the current task fin
 - **Use case**: Enforcing post-completion actions, validation steps, mandatory follow-ups
 
 **Example**: Continuing with Task A "Create new microservice"
-- Downstream tasks might include:
+- Required downstream tasks might include:
   - Task B: "Run unit tests for new microservice"
   - Task C: "Run integration tests"
 
@@ -70,12 +70,12 @@ These tasks are good ideas and logically follow from creating a new service, but
 
 **Constraint levels:**
 1. **Prerequisites**: Hard blocker - cannot consider this task to be complete until these are also completed
-2. **Downstream Tasks**: Hard requirement - must complete these tasks after this task finishes
+2. **Required Downstream Tasks**: Hard requirement - must complete these tasks after this task finishes
 3. **Suggested Downstream Tasks**: Soft suggestion - optional related work
 
 **Workflow implications:**
 - Prerequisites block task start
-- Downstream Tasks block workflow completion
+- Required Downstream Tasks block workflow completion
 - Suggested Downstream Tasks provide guidance but don't block anything
 
 ### Visual Example
@@ -86,7 +86,7 @@ Task A: "Create new microservice"
       Task X: "Create k8s manifests"
       Task Y: "Create container build flow"
 
-   Downstream Tasks (MUST complete after):
+   Required Downstream Tasks (MUST complete after):
       Task B: "Run unit tests for new microservice"
       Task C: "Run integration tests"
 
@@ -99,7 +99,7 @@ Task A: "Create new microservice"
 **Workflow execution:**
 1. Tasks X and Y must complete **before** Task A can start (Prerequisites)
 2. Task A executes
-3. After Task A completes, Tasks B and C **must be run** (Downstream Tasks)
+3. After Task A completes, Tasks B and C **must be run** (Required Downstream Tasks)
 4. Tasks D, E, and F are **recommended** but optional (Suggested Downstream Tasks)
 5. The workflow is only complete when A, B, and C are all done (X and Y are prerequisites)
 
@@ -116,7 +116,7 @@ Task A: "Create new microservice"
 - Resource availability (can't use infrastructure before it's created)
 - Logical prerequisites (can't test code before it's written)
 
-### Downstream Tasks
+### Required Downstream Tasks
 - Enforcing post-completion actions
 - Validation steps that must run after task completion
 - Mandatory follow-up actions
