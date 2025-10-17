@@ -16,7 +16,7 @@ All three graphs must be acyclic to maintain a valid task system.
 
 Prerequisites represent tasks that **must be completed before** or **are components of** the current task. The current task cannot be considered to be completed unless all its prerequisites are completed.
 
-- **Field**: `UpstreamDependencyIDs` (persisted) / `UpstreamDependencies` (resolved pointers)
+- **Field**: `PrerequisiteIDs` (persisted) / `Prerequisites` (resolved pointers)
 - **Meaning**: "This task cannot proceed until these tasks are complete"
 - **Constraint**: Hard blocker - must be satisfied
 - **Use case**: Enforcing execution order, blocking tasks until prerequisites are met
@@ -105,8 +105,8 @@ Task A: "Create new microservice"
 
 ## Implementation Notes
 
-- **Persisted fields**: `UpstreamDependencyIDs` and `DownstreamDependentIDs` store task IDs as strings
-- **Runtime fields**: `UpstreamDependencies` and `DownstreamDependents` store resolved pointers to actual Task objects (not persisted)
+- **Persisted fields**: `PrerequisiteIDs`, `DownstreamRequiredIDs`, and `DownstreamSuggestedIDs` store task IDs as strings
+- **Runtime fields**: `Prerequisites`, `DownstreamRequired`, and `DownstreamSuggested` store resolved pointers to actual Task objects (not persisted)
 - The resolved pointers are populated by the task manager when loading and building the task graph
 
 ## Use Cases
