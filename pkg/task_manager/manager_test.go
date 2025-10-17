@@ -93,58 +93,8 @@ func TestPersistAndLoad(t *testing.T) {
 			continue
 		}
 
-		if originalTask.ID != loadedTask.ID {
-			t.Errorf("Task %s ID mismatch: expected %s, got %s", id, originalTask.ID, loadedTask.ID)
-		}
-		if originalTask.Name != loadedTask.Name {
-			t.Errorf("Task %s Name mismatch: expected %s, got %s", id, originalTask.Name, loadedTask.Name)
-		}
-		if originalTask.Summary != loadedTask.Summary {
-			t.Errorf("Task %s Summary mismatch: expected %s, got %s", id, originalTask.Summary, loadedTask.Summary)
-		}
-		if originalTask.Description != loadedTask.Description {
-			t.Errorf("Task %s Description mismatch: expected %s, got %s", id, originalTask.Description, loadedTask.Description)
-		}
-
-		// Compare tags
-		if len(originalTask.Tags) != len(loadedTask.Tags) {
-			t.Errorf("Task %s Tags count mismatch: expected %d, got %d", id, len(originalTask.Tags), len(loadedTask.Tags))
-		} else {
-			for i, tag := range originalTask.Tags {
-				if tag != loadedTask.Tags[i] {
-					t.Errorf("Task %s Tag %d mismatch: expected %s, got %s", id, i, tag, loadedTask.Tags[i])
-				}
-			}
-		}
-
-		// Compare dependencies
-		if len(originalTask.DependencyIDs) != len(loadedTask.DependencyIDs) {
-			t.Errorf("Task %s Dependencies count mismatch: expected %d, got %d", id, len(originalTask.DependencyIDs), len(loadedTask.DependencyIDs))
-		} else {
-			for i, dep := range originalTask.DependencyIDs {
-				if dep != loadedTask.DependencyIDs[i] {
-					t.Errorf("Task %s Dependency %d mismatch: expected %s, got %s", id, i, dep, loadedTask.DependencyIDs[i])
-				}
-			}
-		}
-
-		// Compare dependents
-		if len(originalTask.DependentIDs) != len(loadedTask.DependentIDs) {
-			t.Errorf("Task %s Dependents count mismatch: expected %d, got %d", id, len(originalTask.DependentIDs), len(loadedTask.DependentIDs))
-		} else {
-			for i, dep := range originalTask.DependentIDs {
-				if dep != loadedTask.DependentIDs[i] {
-					t.Errorf("Task %s Dependent %d mismatch: expected %s, got %s", id, i, dep, loadedTask.DependentIDs[i])
-				}
-			}
-		}
-
-		// Compare timestamps (truncated to second precision due to YAML serialization)
-		if !originalTask.CreatedAt.Equal(loadedTask.CreatedAt) {
-			t.Errorf("Task %s CreatedAt mismatch: expected %v, got %v", id, originalTask.CreatedAt, loadedTask.CreatedAt)
-		}
-		if !originalTask.UpdatedAt.Equal(loadedTask.UpdatedAt) {
-			t.Errorf("Task %s UpdatedAt mismatch: expected %v, got %v", id, originalTask.UpdatedAt, loadedTask.UpdatedAt)
+		if !originalTask.Equals(loadedTask) {
+			t.Errorf("Task %s does not match after persist/load cycle", id)
 		}
 	}
 }
@@ -277,14 +227,8 @@ func TestGetTask(t *testing.T) {
 	if retrievedTask == nil {
 		t.Fatal("Retrieved task is nil")
 	}
-	if retrievedTask.ID != task1.ID {
-		t.Errorf("Retrieved task ID mismatch: expected %s, got %s", task1.ID, retrievedTask.ID)
-	}
-	if retrievedTask.Name != task1.Name {
-		t.Errorf("Retrieved task Name mismatch: expected %s, got %s", task1.Name, retrievedTask.Name)
-	}
-	if retrievedTask.Summary != task1.Summary {
-		t.Errorf("Retrieved task Summary mismatch: expected %s, got %s", task1.Summary, retrievedTask.Summary)
+	if !retrievedTask.Equals(task1) {
+		t.Error("Retrieved task does not match original task")
 	}
 
 	// Test retrieving a non-existent task
@@ -490,17 +434,8 @@ func TestUpdateTask(t *testing.T) {
 		t.Fatalf("Failed to retrieve updated task: %v", err)
 	}
 
-	if retrievedTask.Name != "Updated Name" {
-		t.Errorf("Name not updated: expected 'Updated Name', got %s", retrievedTask.Name)
-	}
-	if retrievedTask.Summary != "Updated Summary" {
-		t.Errorf("Summary not updated: expected 'Updated Summary', got %s", retrievedTask.Summary)
-	}
-	if retrievedTask.Description != "Updated Description" {
-		t.Errorf("Description not updated: expected 'Updated Description', got %s", retrievedTask.Description)
-	}
-	if len(retrievedTask.Tags) != 2 || retrievedTask.Tags[0] != "updated" {
-		t.Errorf("Tags not updated: expected ['updated', 'modified'], got %v", retrievedTask.Tags)
+	if !retrievedTask.Equals(updatedTask) {
+		t.Error("Retrieved task does not match updated task")
 	}
 
 	// Test updating a non-existent task

@@ -156,3 +156,293 @@ func TestTaskJSONMarshalling(t *testing.T) {
 		t.Errorf("Dependents pointer field should be nil after unmarshal, got %v", unmarshalled.Dependents)
 	}
 }
+
+func TestTaskEquals(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Create a base task
+	baseTask := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	// Test 1: Same task should equal itself
+	if !baseTask.Equals(baseTask) {
+		t.Error("Task should equal itself")
+	}
+
+	// Test 2: Identical task should be equal
+	identicalTask := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if !baseTask.Equals(identicalTask) {
+		t.Error("Identical tasks should be equal")
+	}
+
+	// Test 3: Both nil should be equal
+	var nilTask1 *Task
+	var nilTask2 *Task
+	if !nilTask1.Equals(nilTask2) {
+		t.Error("Two nil tasks should be equal")
+	}
+
+	// Test 4: One nil, one non-nil should not be equal
+	if baseTask.Equals(nilTask1) {
+		t.Error("Task and nil should not be equal")
+	}
+	if nilTask1.Equals(baseTask) {
+		t.Error("Nil and task should not be equal")
+	}
+
+	// Test 5: Different ID
+	differentID := &Task{
+		ID:            "test-2",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentID) {
+		t.Error("Tasks with different IDs should not be equal")
+	}
+
+	// Test 6: Different Name
+	differentName := &Task{
+		ID:            "test-1",
+		Name:          "Different Name",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentName) {
+		t.Error("Tasks with different Names should not be equal")
+	}
+
+	// Test 7: Different Summary
+	differentSummary := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Different Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentSummary) {
+		t.Error("Tasks with different Summaries should not be equal")
+	}
+
+	// Test 8: Different Description
+	differentDescription := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Different Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentDescription) {
+		t.Error("Tasks with different Descriptions should not be equal")
+	}
+
+	// Test 9: Different CreatedAt
+	differentCreatedAt := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now.Add(time.Hour),
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentCreatedAt) {
+		t.Error("Tasks with different CreatedAt should not be equal")
+	}
+
+	// Test 10: Different UpdatedAt
+	differentUpdatedAt := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now.Add(time.Hour),
+	}
+	if baseTask.Equals(differentUpdatedAt) {
+		t.Error("Tasks with different UpdatedAt should not be equal")
+	}
+
+	// Test 11: Different Tags length
+	differentTagsLength := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentTagsLength) {
+		t.Error("Tasks with different Tags length should not be equal")
+	}
+
+	// Test 12: Different Tags values
+	differentTagsValues := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag3"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentTagsValues) {
+		t.Error("Tasks with different Tags values should not be equal")
+	}
+
+	// Test 13: Different DependencyIDs length
+	differentDepsLength := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentDepsLength) {
+		t.Error("Tasks with different DependencyIDs length should not be equal")
+	}
+
+	// Test 14: Different DependencyIDs values
+	differentDepsValues := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-3"},
+		DependentIDs:  []string{"dependent-1"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentDepsValues) {
+		t.Error("Tasks with different DependencyIDs values should not be equal")
+	}
+
+	// Test 15: Different DependentIDs length
+	differentDependentsLength := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentDependentsLength) {
+		t.Error("Tasks with different DependentIDs length should not be equal")
+	}
+
+	// Test 16: Different DependentIDs values
+	differentDependentsValues := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-2"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if baseTask.Equals(differentDependentsValues) {
+		t.Error("Tasks with different DependentIDs values should not be equal")
+	}
+
+	// Test 17: Empty slices vs nil slices (should be equal based on length comparison)
+	emptySlices := &Task{
+		ID:            "test-empty",
+		Name:          "Empty Slices",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{},
+		DependencyIDs: []string{},
+		DependentIDs:  []string{},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	nilSlices := &Task{
+		ID:            "test-empty",
+		Name:          "Empty Slices",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          nil,
+		DependencyIDs: nil,
+		DependentIDs:  nil,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if !emptySlices.Equals(nilSlices) {
+		t.Error("Tasks with empty slices and nil slices should be equal")
+	}
+
+	// Test 18: Pointer fields should not affect equality
+	withPointers := &Task{
+		ID:            "test-1",
+		Name:          "Test Task",
+		Summary:       "Summary",
+		Description:   "Description",
+		Tags:          []string{"tag1", "tag2"},
+		DependencyIDs: []string{"dep-1", "dep-2"},
+		DependentIDs:  []string{"dependent-1"},
+		Dependencies:  []*Task{{ID: "different"}},
+		Dependents:    []*Task{{ID: "different"}},
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if !baseTask.Equals(withPointers) {
+		t.Error("Pointer fields should not affect equality comparison")
+	}
+}
