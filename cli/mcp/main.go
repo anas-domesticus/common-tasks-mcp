@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
+	"common-tasks-mcp/mcp/server"
 	"common-tasks-mcp/pkg/config"
 
 	"github.com/spf13/cobra"
@@ -90,7 +94,7 @@ Transport modes:
 			os.Exit(1)
 		}
 
-		// Start server
+		// Print server info
 		fmt.Println("Common Tasks MCP Server v0.1.0")
 		fmt.Printf("Transport mode: %s\n", cfg.Transport)
 		fmt.Printf("Task directory: %s\n", cfg.Directory)
@@ -100,8 +104,42 @@ Transport modes:
 		if cfg.Verbose {
 			fmt.Println("Verbose logging enabled")
 		}
-		// TODO: Implement actual server startup based on transport mode
-		fmt.Println("Server is running. Press Ctrl+C to stop.")
+		fmt.Println()
+
+		// Create server
+		srv := server.New(cfg)
+
+		// Setup context with signal handling
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Handle shutdown signals
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+		// Start server in goroutine
+		errChan := make(chan error, 1)
+		go func() {
+			var err error
+			if cfg.Transport == "http" {
+				err = srv.RunHTTP(ctx)
+			} else {
+				err = srv.Run(ctx)
+			}
+			errChan <- err
+		}()
+
+		// Wait for shutdown signal or error
+		select {
+		case <-sigChan:
+			fmt.Println("\nShutting down server...")
+			cancel()
+		case err := <-errChan:
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
+				os.Exit(1)
+			}
+		}
 	},
 }
 

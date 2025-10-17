@@ -10,22 +10,20 @@ import (
 
 // Server wraps the MCP server
 type Server struct {
-	mcp  *mcp.Server
-	host string
-	port int
+	mcp    *mcp.Server
+	config Config
 }
 
 // New creates a new MCP server instance
-func New(host string, port int) *Server {
+func New(cfg Config) *Server {
 	mcpServer := mcp.NewServer(&mcp.Implementation{
 		Name:    "common-tasks-mcp",
 		Version: "0.1.0",
 	}, nil)
 
 	return &Server{
-		mcp:  mcpServer,
-		host: host,
-		port: port,
+		mcp:    mcpServer,
+		config: cfg,
 	}
 }
 
@@ -37,7 +35,7 @@ func (s *Server) RunHTTP(ctx context.Context) error {
 	}, nil)
 
 	// Create HTTP server
-	addr := fmt.Sprintf("%s:%d", s.host, s.port)
+	addr := fmt.Sprintf(":%d", s.config.HTTPPort)
 	httpServer := &http.Server{
 		Addr:    addr,
 		Handler: handler,
@@ -46,7 +44,7 @@ func (s *Server) RunHTTP(ctx context.Context) error {
 	// Run server with graceful shutdown
 	errChan := make(chan error, 1)
 	go func() {
-		fmt.Printf("Starting MCP server on http://%s\n", addr)
+		fmt.Printf("Starting MCP server on http://localhost%s\n", addr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errChan <- err
 		}
