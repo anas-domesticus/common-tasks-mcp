@@ -61,8 +61,8 @@ func TestPersistAndLoad(t *testing.T) {
 	manager1.tasks["task-b"] = taskB
 	manager1.tasks["task-c"] = taskC
 
-	// Persist tasks to directory
-	if err := manager1.Persist(testDir); err != nil {
+	// PersistToDir tasks to directory
+	if err := manager1.PersistToDir(testDir); err != nil {
 		t.Fatalf("Failed to persist tasks: %v", err)
 	}
 
@@ -76,7 +76,7 @@ func TestPersistAndLoad(t *testing.T) {
 
 	// Create a new manager and load tasks
 	manager2 := NewManager()
-	if err := manager2.Load(testDir); err != nil {
+	if err := manager2.LoadFromDir(testDir); err != nil {
 		t.Fatalf("Failed to load tasks: %v", err)
 	}
 
@@ -757,7 +757,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected in prerequisites DAG",
+			errorMsg:  "Prerequisites DAG: task-a -> task-a",
 		},
 		{
 			name: "self-cycle in downstream required",
@@ -772,7 +772,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected in downstream required DAG",
+			errorMsg:  "Downstream Required DAG: task-a -> task-a",
 		},
 		{
 			name: "self-cycle in downstream suggested",
@@ -788,7 +788,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected in downstream suggested DAG",
+			errorMsg:  "Downstream Suggested DAG: task-a -> task-a",
 		},
 		{
 			name: "two-task cycle in prerequisites",
@@ -811,7 +811,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected in prerequisites DAG",
+			errorMsg:  "Prerequisites DAG:",
 		},
 		{
 			name: "two-task cycle in downstream required",
@@ -834,7 +834,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected in downstream required DAG",
+			errorMsg:  "Downstream Required DAG:",
 		},
 		{
 			name: "three-task cycle in prerequisites",
@@ -865,7 +865,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected in prerequisites DAG",
+			errorMsg:  "Prerequisites DAG:",
 		},
 		{
 			name: "longer cycle - 4 tasks in prerequisites",
@@ -900,7 +900,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected in prerequisites DAG",
+			errorMsg:  "Prerequisites DAG:",
 		},
 		{
 			name: "diamond pattern - not a cycle, valid",
@@ -972,7 +972,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected",
+			errorMsg:  "detected 2 cycle(s)",
 		},
 		{
 			name: "complex valid graph with multiple paths",
@@ -1060,7 +1060,7 @@ func TestDetectCycles(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "cycle detected in downstream suggested DAG",
+			errorMsg:  "Downstream Suggested DAG:",
 		},
 	}
 

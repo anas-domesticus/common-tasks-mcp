@@ -122,67 +122,82 @@ func (m *Manager) getTasks(ids []string) ([]*types.Task, error) {
 	return tasks, nil
 }
 
-// GetPrerequisites retrieves all prerequisite tasks for the given task
-func (m *Manager) GetPrerequisites(task *types.Task) ([]*types.Task, error) {
-	if task == nil {
-		return nil, fmt.Errorf("task cannot be nil")
+// ResolveTaskPointers populates the task pointer fields (Prerequisites, DownstreamRequired,
+// DownstreamSuggested) by looking up the corresponding IDs for all tasks in the manager.
+// Should be called after loading tasks from disk to restore the pointer relationships.
+// Returns an error if any referenced task IDs cannot be found.
+func (m *Manager) ResolveTaskPointers() error {
+	for _, task := range m.tasks {
+		// Resolve prerequisites
+		if len(task.PrerequisiteIDs) > 0 {
+			prereqs, err := m.getTasks(task.PrerequisiteIDs)
+			if err != nil {
+				return fmt.Errorf("failed to resolve prerequisites for task %s: %w", task.ID, err)
+			}
+			task.Prerequisites = prereqs
+		}
+
+		// Resolve downstream required
+		if len(task.DownstreamRequiredIDs) > 0 {
+			downstream, err := m.getTasks(task.DownstreamRequiredIDs)
+			if err != nil {
+				return fmt.Errorf("failed to resolve downstream required for task %s: %w", task.ID, err)
+			}
+			task.DownstreamRequired = downstream
+		}
+
+		// Resolve downstream suggested
+		if len(task.DownstreamSuggestedIDs) > 0 {
+			suggested, err := m.getTasks(task.DownstreamSuggestedIDs)
+			if err != nil {
+				return fmt.Errorf("failed to resolve downstream suggested for task %s: %w", task.ID, err)
+			}
+			task.DownstreamSuggested = suggested
+		}
 	}
 
-	return m.getTasks(task.PrerequisiteIDs)
-}
-
-// GetDownstreamRequired retrieves all required downstream tasks for the given task
-func (m *Manager) GetDownstreamRequired(task *types.Task) ([]*types.Task, error) {
-	if task == nil {
-		return nil, fmt.Errorf("task cannot be nil")
-	}
-
-	return m.getTasks(task.DownstreamRequiredIDs)
-}
-
-// GetDownstreamSuggested retrieves all suggested downstream tasks for the given task
-func (m *Manager) GetDownstreamSuggested(task *types.Task) ([]*types.Task, error) {
-	if task == nil {
-		return nil, fmt.Errorf("task cannot be nil")
-	}
-
-	return m.getTasks(task.DownstreamSuggestedIDs)
+	return nil
 }
 
 // DetectCycles checks all three DAGs (Prerequisites, Downstream Required, and Downstream Suggested)
-// for cycles. Returns an error if any cycles are detected.
+// for cycles. Returns an error if any cycles are detected, with detailed information about all cycles found.
 func (m *Manager) DetectCycles() error {
-	var errors []error
+	var allCycles []string
 
 	// Check Prerequisites DAG for cycles
-	if err := m.detectCyclesInDAG("prerequisites", func(task *types.Task) []string {
+	cycles := m.detectCyclesInDAG("prerequisites", func(task *types.Task) []string {
 		return task.PrerequisiteIDs
-	}); err != nil {
-		errors = append(errors, fmt.Errorf("cycle detected in prerequisites DAG: %w", err))
+	})
+	if len(cycles) > 0 {
+		for _, cycle := range cycles {
+			allCycles = append(allCycles, fmt.Sprintf("Prerequisites DAG: %s", cycle))
+		}
 	}
 
 	// Check Downstream Required DAG for cycles
-	if err := m.detectCyclesInDAG("downstream required", func(task *types.Task) []string {
+	cycles = m.detectCyclesInDAG("downstream required", func(task *types.Task) []string {
 		return task.DownstreamRequiredIDs
-	}); err != nil {
-		errors = append(errors, fmt.Errorf("cycle detected in downstream required DAG: %w", err))
+	})
+	if len(cycles) > 0 {
+		for _, cycle := range cycles {
+			allCycles = append(allCycles, fmt.Sprintf("Downstream Required DAG: %s", cycle))
+		}
 	}
 
 	// Check Downstream Suggested DAG for cycles
-	if err := m.detectCyclesInDAG("downstream suggested", func(task *types.Task) []string {
+	cycles = m.detectCyclesInDAG("downstream suggested", func(task *types.Task) []string {
 		return task.DownstreamSuggestedIDs
-	}); err != nil {
-		errors = append(errors, fmt.Errorf("cycle detected in downstream suggested DAG: %w", err))
+	})
+	if len(cycles) > 0 {
+		for _, cycle := range cycles {
+			allCycles = append(allCycles, fmt.Sprintf("Downstream Suggested DAG: %s", cycle))
+		}
 	}
 
-	if len(errors) > 0 {
-		// Combine all errors into one
-		msg := ""
-		for i, err := range errors {
-			if i > 0 {
-				msg += "; "
-			}
-			msg += err.Error()
+	if len(allCycles) > 0 {
+		msg := fmt.Sprintf("detected %d cycle(s):\n", len(allCycles))
+		for i, cycle := range allCycles {
+			msg += fmt.Sprintf("  %d. %s\n", i+1, cycle)
 		}
 		return fmt.Errorf("%s", msg)
 	}
@@ -191,59 +206,75 @@ func (m *Manager) DetectCycles() error {
 }
 
 // detectCyclesInDAG performs cycle detection on a specific DAG using DFS
-func (m *Manager) detectCyclesInDAG(dagName string, getEdges func(*types.Task) []string) error {
+// Returns a slice of cycle descriptions (e.g., "task-a -> task-b -> task-c -> task-a")
+func (m *Manager) detectCyclesInDAG(dagName string, getEdges func(*types.Task) []string) []string {
 	visited := make(map[string]bool)
 	recStack := make(map[string]bool)
+	var cycles []string
+	path := []string{}
 
 	// Check each task as a potential starting point
 	for taskID := range m.tasks {
 		if !visited[taskID] {
-			if m.hasCycleDFS(taskID, visited, recStack, getEdges) {
-				return fmt.Errorf("cycle found starting from task %s", taskID)
-			}
+			m.findCyclesDFS(taskID, visited, recStack, &path, &cycles, getEdges)
 		}
 	}
 
-	return nil
+	return cycles
 }
 
-// hasCycleDFS performs depth-first search to detect cycles
-func (m *Manager) hasCycleDFS(taskID string, visited, recStack map[string]bool, getEdges func(*types.Task) []string) bool {
+// findCyclesDFS performs depth-first search to find all cycles
+func (m *Manager) findCyclesDFS(taskID string, visited, recStack map[string]bool, path *[]string, cycles *[]string, getEdges func(*types.Task) []string) {
 	// Mark current node as visited and add to recursion stack
 	visited[taskID] = true
 	recStack[taskID] = true
+	*path = append(*path, taskID)
 
 	// Get the task
 	task, exists := m.tasks[taskID]
-	if !exists {
-		// If task doesn't exist, we can't traverse it, so no cycle from this path
-		recStack[taskID] = false
-		return false
-	}
+	if exists {
+		// Get edges for this task based on the DAG we're checking
+		edges := getEdges(task)
 
-	// Get edges for this task based on the DAG we're checking
-	edges := getEdges(task)
+		// Recursively check all adjacent nodes
+		for _, adjacentID := range edges {
+			// If adjacent node is not visited, recurse on it
+			if !visited[adjacentID] {
+				m.findCyclesDFS(adjacentID, visited, recStack, path, cycles, getEdges)
+			} else if recStack[adjacentID] {
+				// If adjacent node is in recursion stack, we found a cycle
+				// Find where the cycle starts in the path
+				cycleStart := -1
+				for i, id := range *path {
+					if id == adjacentID {
+						cycleStart = i
+						break
+					}
+				}
 
-	// Recursively check all adjacent nodes
-	for _, adjacentID := range edges {
-		// If adjacent node is not visited, recurse on it
-		if !visited[adjacentID] {
-			if m.hasCycleDFS(adjacentID, visited, recStack, getEdges) {
-				return true
+				// Build the cycle description
+				if cycleStart >= 0 {
+					cyclePath := append((*path)[cycleStart:], adjacentID)
+					cycleDesc := ""
+					for i, id := range cyclePath {
+						if i > 0 {
+							cycleDesc += " -> "
+						}
+						cycleDesc += id
+					}
+					*cycles = append(*cycles, cycleDesc)
+				}
 			}
-		} else if recStack[adjacentID] {
-			// If adjacent node is in recursion stack, we found a cycle
-			return true
 		}
 	}
 
-	// Remove from recursion stack before returning
+	// Remove from recursion stack and path before returning
 	recStack[taskID] = false
-	return false
+	*path = (*path)[:len(*path)-1]
 }
 
-// Load reads all YAML files from the specified directory and loads tasks
-func (m *Manager) Load(dirPath string) error {
+// LoadFromDir reads all YAML files from the specified directory and loads tasks
+func (m *Manager) LoadFromDir(dirPath string) error {
 	// Check if directory exists
 	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 		return fmt.Errorf("directory does not exist: %s", dirPath)
@@ -274,11 +305,17 @@ func (m *Manager) Load(dirPath string) error {
 		m.tasks[task.ID] = &task
 	}
 
-	return nil
+	// Detect cycles before resolving pointers
+	if err := m.DetectCycles(); err != nil {
+		return fmt.Errorf("cycle detected in task graph: %w", err)
+	}
+
+	// Resolve task pointers after loading all tasks and validating no cycles
+	return m.ResolveTaskPointers()
 }
 
-// Persist writes all tasks to the specified directory as YAML files
-func (m *Manager) Persist(dirPath string) error {
+// PersistToDir writes all tasks to the specified directory as YAML files
+func (m *Manager) PersistToDir(dirPath string) error {
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
