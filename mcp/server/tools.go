@@ -343,6 +343,22 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		}, nil
 	}
 
+	// Persist changes to disk
+	if err := s.taskManager.PersistToDir(s.config.Directory); err != nil {
+		s.logger.Error("Failed to persist task to disk",
+			zap.String("task_id", args.ID),
+			zap.Error(err),
+		)
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: fmt.Sprintf("task added but failed to persist to disk: %v", err),
+				},
+			},
+		}, nil
+	}
+
 	data, err := json.Marshal(task)
 	if err != nil {
 		s.logger.Error("Failed to marshal task", zap.String("task_id", args.ID), zap.Error(err))
@@ -427,6 +443,22 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 		}, nil
 	}
 
+	// Persist changes to disk
+	if err := s.taskManager.PersistToDir(s.config.Directory); err != nil {
+		s.logger.Error("Failed to persist task to disk",
+			zap.String("task_id", args.ID),
+			zap.Error(err),
+		)
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: fmt.Sprintf("task updated but failed to persist to disk: %v", err),
+				},
+			},
+		}, nil
+	}
+
 	data, err := json.Marshal(task)
 	if err != nil {
 		s.logger.Error("Failed to marshal task", zap.String("task_id", args.ID), zap.Error(err))
@@ -480,6 +512,22 @@ func (s *Server) handleDeleteTask(ctx context.Context, req *mcp.CallToolRequest)
 			Content: []mcp.Content{
 				&mcp.TextContent{
 					Text: fmt.Sprintf("failed to delete task: %v", err),
+				},
+			},
+		}, nil
+	}
+
+	// Persist changes to disk
+	if err := s.taskManager.PersistToDir(s.config.Directory); err != nil {
+		s.logger.Error("Failed to persist task deletion to disk",
+			zap.String("task_id", args.ID),
+			zap.Error(err),
+		)
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: fmt.Sprintf("task deleted but failed to persist to disk: %v", err),
 				},
 			},
 		}, nil
