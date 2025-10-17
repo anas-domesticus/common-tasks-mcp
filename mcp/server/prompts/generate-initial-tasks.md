@@ -1,6 +1,6 @@
 # Generate Initial Task Set
 
-You have access to the common-tasks MCP server. Your goal is to create a comprehensive set of tasks that capture the common, repeatable workflows for this codebase.
+You have access to the common-tasks MCP server. Your goal is to create discrete, atomic tasks that capture individual operations developers perform repeatedly. Task relationships (prerequisites/downstream) will naturally express complete workflows.
 
 ## What to Create
 
@@ -11,6 +11,24 @@ Create tasks for workflows that developers perform repeatedly, such as:
 - Deployment workflows
 - Development setup steps
 - Git/commit workflows
+
+## What NOT to Create
+
+Avoid creating meta-workflow or umbrella tasks that simply aggregate other tasks:
+- ❌ "Complete Development Workflow" - the relationships already define this
+- ❌ "Release Workflow" - relationships between tasks express the release flow
+- ❌ "Setup Development Environment" - too broad, break into discrete steps
+- ❌ "Pre-commit Checks" - the format-code → lint-code → run-tests relationships already capture this
+
+**Why?** The task relationship DAG IS the workflow. Meta-tasks duplicate what relationships already express and create unnecessary complexity.
+
+**Create discrete, atomic tasks instead:**
+- ✅ "Run Unit Tests" with `go test ./...`
+- ✅ "Format Code" with `gofmt -w .`
+- ✅ "Build Docker Image" with `docker build`
+- ✅ "Run Tests with Coverage" - a specific variant with distinct flags
+
+Each task should represent a single, actionable operation that a developer would run directly.
 
 ## Where to Find Information
 
@@ -48,6 +66,7 @@ Each task should include:
 5. **Cover common scenarios** - what do developers do daily? weekly? on release?
 6. **Keep tags simple** - prefer clear, single-word tags (cicd, k8s, go, java, build). Don't overuse tags; only add new ones when necessary for clarity and organization. Aim for 2-4 tags per task.
 7. **Include directory paths** - mention specific directories in task descriptions to help LLMs navigate directly to relevant code locations (e.g., "Tests are located in pkg/task_manager/" or "Configuration files in config/")
+8. **Keep tasks atomic** - each task should be a single, discrete operation. Don't create meta-tasks that just aggregate other tasks. The DAG relationships express workflows naturally without needing umbrella tasks.
 
 ## Example Task Relationships
 
