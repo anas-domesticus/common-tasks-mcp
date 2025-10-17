@@ -722,3 +722,181 @@ func TestCheckEdgeConsistency(t *testing.T) {
 		})
 	}
 }
+
+func TestTask_CheckEdgeConsistency(t *testing.T) {
+	tests := []struct {
+		name             string
+		task             *Task
+		wantError        bool
+		errorContains    string
+		errorContainsAll []string
+	}{
+		{
+			name:      "nil task returns nil",
+			task:      nil,
+			wantError: false,
+		},
+		{
+			name: "all edges consistent",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				Prerequisites:          []*Task{{ID: "prereq-1"}, {ID: "prereq-2"}},
+				DownstreamRequiredIDs:  []string{"req-1"},
+				DownstreamRequired:     []*Task{{ID: "req-1"}},
+				DownstreamSuggestedIDs: []string{"sug-1", "sug-2"},
+				DownstreamSuggested:    []*Task{{ID: "sug-1"}, {ID: "sug-2"}},
+			},
+			wantError: false,
+		},
+		{
+			name: "all edges consistent with different order",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				Prerequisites:          []*Task{{ID: "prereq-2"}, {ID: "prereq-1"}},
+				DownstreamRequiredIDs:  []string{"req-1", "req-2"},
+				DownstreamRequired:     []*Task{{ID: "req-2"}, {ID: "req-1"}},
+				DownstreamSuggestedIDs: []string{"sug-1", "sug-2"},
+				DownstreamSuggested:    []*Task{{ID: "sug-2"}, {ID: "sug-1"}},
+			},
+			wantError: false,
+		},
+		{
+			name: "all edges empty",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{},
+				Prerequisites:          []*Task{},
+				DownstreamRequiredIDs:  []string{},
+				DownstreamRequired:     []*Task{},
+				DownstreamSuggestedIDs: []string{},
+				DownstreamSuggested:    []*Task{},
+			},
+			wantError: false,
+		},
+		{
+			name: "all edges nil",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        nil,
+				Prerequisites:          nil,
+				DownstreamRequiredIDs:  nil,
+				DownstreamRequired:     nil,
+				DownstreamSuggestedIDs: nil,
+				DownstreamSuggested:    nil,
+			},
+			wantError: false,
+		},
+		{
+			name: "prerequisite edges inconsistent",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{"prereq-1"},
+				Prerequisites:          []*Task{{ID: "prereq-2"}},
+				DownstreamRequiredIDs:  []string{"req-1"},
+				DownstreamRequired:     []*Task{{ID: "req-1"}},
+				DownstreamSuggestedIDs: []string{"sug-1"},
+				DownstreamSuggested:    []*Task{{ID: "sug-1"}},
+			},
+			wantError:     true,
+			errorContains: "prerequisite edges",
+		},
+		{
+			name: "downstream required edges inconsistent",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{"prereq-1"},
+				Prerequisites:          []*Task{{ID: "prereq-1"}},
+				DownstreamRequiredIDs:  []string{"req-1", "req-2"},
+				DownstreamRequired:     []*Task{{ID: "req-1"}},
+				DownstreamSuggestedIDs: []string{"sug-1"},
+				DownstreamSuggested:    []*Task{{ID: "sug-1"}},
+			},
+			wantError:     true,
+			errorContains: "downstream required edges",
+		},
+		{
+			name: "downstream suggested edges inconsistent",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{"prereq-1"},
+				Prerequisites:          []*Task{{ID: "prereq-1"}},
+				DownstreamRequiredIDs:  []string{"req-1"},
+				DownstreamRequired:     []*Task{{ID: "req-1"}},
+				DownstreamSuggestedIDs: []string{"sug-1"},
+				DownstreamSuggested:    []*Task{{ID: "sug-2"}},
+			},
+			wantError:     true,
+			errorContains: "downstream suggested edges",
+		},
+		{
+			name: "prerequisite edges inconsistent - nil task",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				Prerequisites:          []*Task{{ID: "prereq-1"}, nil},
+				DownstreamRequiredIDs:  []string{},
+				DownstreamRequired:     []*Task{},
+				DownstreamSuggestedIDs: []string{},
+				DownstreamSuggested:    []*Task{},
+			},
+			wantError:     true,
+			errorContains: "prerequisite edges",
+		},
+		{
+			name: "multiple edges inconsistent - returns all errors",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{"prereq-1"},
+				Prerequisites:          []*Task{{ID: "wrong-id"}},
+				DownstreamRequiredIDs:  []string{"req-1"},
+				DownstreamRequired:     []*Task{{ID: "also-wrong"}},
+				DownstreamSuggestedIDs: []string{"sug-1"},
+				DownstreamSuggested:    []*Task{{ID: "wrong-again"}},
+			},
+			wantError:        true,
+			errorContainsAll: []string{"prerequisite edges", "downstream required edges", "downstream suggested edges"},
+		},
+		{
+			name: "all three edge types inconsistent with different errors",
+			task: &Task{
+				ID:                     "task-1",
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				Prerequisites:          []*Task{{ID: "prereq-1"}}, // length mismatch
+				DownstreamRequiredIDs:  []string{"req-1"},
+				DownstreamRequired:     []*Task{nil}, // nil task
+				DownstreamSuggestedIDs: []string{"sug-1"},
+				DownstreamSuggested:    []*Task{{ID: "sug-2"}}, // ID mismatch
+			},
+			wantError:        true,
+			errorContainsAll: []string{"prerequisite edges", "downstream required edges", "downstream suggested edges"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.task.CheckEdgeConsistency()
+
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("CheckEdgeConsistency() expected error but got nil")
+				} else {
+					errStr := err.Error()
+					if tt.errorContains != "" && !strings.Contains(errStr, tt.errorContains) {
+						t.Errorf("CheckEdgeConsistency() error = %q, want error containing %q", errStr, tt.errorContains)
+					}
+					for _, substr := range tt.errorContainsAll {
+						if !strings.Contains(errStr, substr) {
+							t.Errorf("CheckEdgeConsistency() error = %q, want error containing %q", errStr, substr)
+						}
+					}
+				}
+			} else {
+				if err != nil {
+					t.Errorf("CheckEdgeConsistency() unexpected error = %v", err)
+				}
+			}
+		})
+	}
+}

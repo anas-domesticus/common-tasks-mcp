@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -192,4 +193,57 @@ func checkEdgeConsistency(tasks []*Task, ids []string) error {
 	}
 
 	return nil
+}
+
+// checkPrerequisiteConsistency validates that Prerequisites and PrerequisiteIDs are consistent.
+// Returns nil if consistent, or a descriptive error if inconsistent.
+func (t *Task) checkPrerequisiteConsistency() error {
+	if t == nil {
+		return nil
+	}
+	return checkEdgeConsistency(t.Prerequisites, t.PrerequisiteIDs)
+}
+
+// checkDownstreamRequiredConsistency validates that DownstreamRequired and DownstreamRequiredIDs are consistent.
+// Returns nil if consistent, or a descriptive error if inconsistent.
+func (t *Task) checkDownstreamRequiredConsistency() error {
+	if t == nil {
+		return nil
+	}
+	return checkEdgeConsistency(t.DownstreamRequired, t.DownstreamRequiredIDs)
+}
+
+// checkDownstreamSuggestedConsistency validates that DownstreamSuggested and DownstreamSuggestedIDs are consistent.
+// Returns nil if consistent, or a descriptive error if inconsistent.
+func (t *Task) checkDownstreamSuggestedConsistency() error {
+	if t == nil {
+		return nil
+	}
+	return checkEdgeConsistency(t.DownstreamSuggested, t.DownstreamSuggestedIDs)
+}
+
+// CheckEdgeConsistency validates that all DAG edge relationships are consistent.
+// It checks that Prerequisites, DownstreamRequired, and DownstreamSuggested slices
+// match their corresponding ID slices (PrerequisiteIDs, DownstreamRequiredIDs, DownstreamSuggestedIDs).
+// Returns nil if all edges are consistent, or a joined error containing all inconsistencies found.
+func (t *Task) CheckEdgeConsistency() error {
+	if t == nil {
+		return nil
+	}
+
+	var errs []error
+
+	if err := t.checkPrerequisiteConsistency(); err != nil {
+		errs = append(errs, fmt.Errorf("prerequisite edges: %w", err))
+	}
+
+	if err := t.checkDownstreamRequiredConsistency(); err != nil {
+		errs = append(errs, fmt.Errorf("downstream required edges: %w", err))
+	}
+
+	if err := t.checkDownstreamSuggestedConsistency(); err != nil {
+		errs = append(errs, fmt.Errorf("downstream suggested edges: %w", err))
+	}
+
+	return errors.Join(errs...)
 }
