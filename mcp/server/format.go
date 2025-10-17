@@ -14,17 +14,8 @@ func formatTasksAsMarkdown(tasks []*types.Task) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("## Available Tasks\n\n")
-
 	for _, task := range tasks {
-		sb.WriteString(fmt.Sprintf("### %s\n", task.ID))
-		sb.WriteString(fmt.Sprintf("**%s**\n\n", task.Name))
-
-		if task.Summary != "" {
-			sb.WriteString(fmt.Sprintf("%s\n\n", task.Summary))
-		}
-
-		sb.WriteString("---\n\n")
+		sb.WriteString(fmt.Sprintf("%s - %s\n", task.ID, task.Summary))
 	}
 
 	return sb.String()
