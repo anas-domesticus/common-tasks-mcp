@@ -50,6 +50,10 @@ func (m *Manager) AddTask(task *types.Task) error {
 
 	// If no cycles detected, commit the addition to the original manager
 	m.tasks[task.ID] = task
+
+	// Update tag cache with the new task
+	m.PopulateTagCache()
+
 	return nil
 }
 
@@ -83,7 +87,14 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 
 	// Resolve all task pointers to fix stale references
 	// This ensures that any tasks pointing to the updated task get fresh pointers
-	return m.ResolveTaskPointers()
+	if err := m.ResolveTaskPointers(); err != nil {
+		return err
+	}
+
+	// Update tag cache since tags may have changed
+	m.PopulateTagCache()
+
+	return nil
 }
 
 // DeleteTask removes a task from the manager and cleans up all references to it
@@ -126,6 +137,10 @@ func (m *Manager) DeleteTask(id string) error {
 
 	// Delete the task itself
 	delete(m.tasks, id)
+
+	// Update tag cache since a task was removed
+	m.PopulateTagCache()
+
 	return nil
 }
 
