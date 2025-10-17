@@ -204,7 +204,7 @@ func TestTaskJSONMarshalling(t *testing.T) {
 func TestTaskEquals(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 
-	// Create a base task
+	// Create a base task for comparisons
 	baseTask := &Task{
 		ID:                     "test-1",
 		Name:                   "Test Task",
@@ -218,327 +218,347 @@ func TestTaskEquals(t *testing.T) {
 		UpdatedAt:              now,
 	}
 
-	// Test 1: Same task should equal itself
-	if !baseTask.Equals(baseTask) {
-		t.Error("Task should equal itself")
+	tests := []struct {
+		name        string
+		task1       *Task
+		task2       *Task
+		shouldEqual bool
+	}{
+		{
+			name:        "same task should equal itself",
+			task1:       baseTask,
+			task2:       baseTask,
+			shouldEqual: true,
+		},
+		{
+			name:  "identical task should be equal",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: true,
+		},
+		{
+			name:        "both nil should be equal",
+			task1:       nil,
+			task2:       nil,
+			shouldEqual: true,
+		},
+		{
+			name:        "task and nil should not be equal",
+			task1:       baseTask,
+			task2:       nil,
+			shouldEqual: false,
+		},
+		{
+			name:        "nil and task should not be equal",
+			task1:       nil,
+			task2:       baseTask,
+			shouldEqual: false,
+		},
+		{
+			name:  "different ID",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-2",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different Name",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Different Name",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different Summary",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Different Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different Description",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Different Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different CreatedAt",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now.Add(time.Hour),
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different UpdatedAt",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now.Add(time.Hour),
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different Tags length",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different Tags values",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag3"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different PrerequisiteIDs length",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different PrerequisiteIDs values",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-3"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different DownstreamRequiredIDs length",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different DownstreamRequiredIDs values",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-2"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different DownstreamSuggestedIDs length",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name:  "different DownstreamSuggestedIDs values",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-2"},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: false,
+		},
+		{
+			name: "empty slices vs nil slices should be equal",
+			task1: &Task{
+				ID:                     "test-empty",
+				Name:                   "Empty Slices",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{},
+				PrerequisiteIDs:        []string{},
+				DownstreamRequiredIDs:  []string{},
+				DownstreamSuggestedIDs: []string{},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			task2: &Task{
+				ID:                     "test-empty",
+				Name:                   "Empty Slices",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   nil,
+				PrerequisiteIDs:        nil,
+				DownstreamRequiredIDs:  nil,
+				DownstreamSuggestedIDs: nil,
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: true,
+		},
+		{
+			name:  "pointer fields should not affect equality",
+			task1: baseTask,
+			task2: &Task{
+				ID:                     "test-1",
+				Name:                   "Test Task",
+				Summary:                "Summary",
+				Description:            "Description",
+				Tags:                   []string{"tag1", "tag2"},
+				PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+				DownstreamRequiredIDs:  []string{"required-1"},
+				DownstreamSuggestedIDs: []string{"suggested-1"},
+				Prerequisites:          []*Task{{ID: "different"}},
+				DownstreamRequired:     []*Task{{ID: "different"}},
+				DownstreamSuggested:    []*Task{{ID: "different"}},
+				CreatedAt:              now,
+				UpdatedAt:              now,
+			},
+			shouldEqual: true,
+		},
 	}
 
-	// Test 2: Identical task should be equal
-	identicalTask := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if !baseTask.Equals(identicalTask) {
-		t.Error("Identical tasks should be equal")
-	}
-
-	// Test 3: Both nil should be equal
-	var nilTask1 *Task
-	var nilTask2 *Task
-	if !nilTask1.Equals(nilTask2) {
-		t.Error("Two nil tasks should be equal")
-	}
-
-	// Test 4: One nil, one non-nil should not be equal
-	if baseTask.Equals(nilTask1) {
-		t.Error("Task and nil should not be equal")
-	}
-	if nilTask1.Equals(baseTask) {
-		t.Error("Nil and task should not be equal")
-	}
-
-	// Test 5: Different ID
-	differentID := &Task{
-		ID:                     "test-2",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentID) {
-		t.Error("Tasks with different IDs should not be equal")
-	}
-
-	// Test 6: Different Name
-	differentName := &Task{
-		ID:                     "test-1",
-		Name:                   "Different Name",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentName) {
-		t.Error("Tasks with different Names should not be equal")
-	}
-
-	// Test 7: Different Summary
-	differentSummary := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Different Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentSummary) {
-		t.Error("Tasks with different Summaries should not be equal")
-	}
-
-	// Test 8: Different Description
-	differentDescription := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Different Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentDescription) {
-		t.Error("Tasks with different Descriptions should not be equal")
-	}
-
-	// Test 9: Different CreatedAt
-	differentCreatedAt := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now.Add(time.Hour),
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentCreatedAt) {
-		t.Error("Tasks with different CreatedAt should not be equal")
-	}
-
-	// Test 10: Different UpdatedAt
-	differentUpdatedAt := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now.Add(time.Hour),
-	}
-	if baseTask.Equals(differentUpdatedAt) {
-		t.Error("Tasks with different UpdatedAt should not be equal")
-	}
-
-	// Test 11: Different Tags length
-	differentTagsLength := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentTagsLength) {
-		t.Error("Tasks with different Tags length should not be equal")
-	}
-
-	// Test 12: Different Tags values
-	differentTagsValues := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag3"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentTagsValues) {
-		t.Error("Tasks with different Tags values should not be equal")
-	}
-
-	// Test 13: Different PrerequisiteIDs length
-	differentDepsLength := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1"}, // Only 1 instead of 2
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentDepsLength) {
-		t.Error("Tasks with different PrerequisiteIDs length should not be equal")
-	}
-
-	// Test 14: Different PrerequisiteIDs values
-	differentDepsValues := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-3"}, // Different value
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentDepsValues) {
-		t.Error("Tasks with different PrerequisiteIDs values should not be equal")
-	}
-
-	// Test 15: Different DownstreamRequiredIDs length
-	differentDependentsLength := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{}, // Empty instead of 1
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentDependentsLength) {
-		t.Error("Tasks with different DownstreamRequiredIDs length should not be equal")
-	}
-
-	// Test 16: Different DownstreamRequiredIDs values
-	differentDependentsValues := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-2"}, // Different value
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentDependentsValues) {
-		t.Error("Tasks with different DownstreamRequiredIDs values should not be equal")
-	}
-
-	// Test 17: Different DownstreamSuggestedIDs length
-	differentSuggestedLength := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{}, // Empty instead of 1
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentSuggestedLength) {
-		t.Error("Tasks with different DownstreamSuggestedIDs length should not be equal")
-	}
-
-	// Test 18: Different DownstreamSuggestedIDs values
-	differentSuggestedValues := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-2"}, // Different value
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if baseTask.Equals(differentSuggestedValues) {
-		t.Error("Tasks with different DownstreamSuggestedIDs values should not be equal")
-	}
-
-	// Test 19: Empty slices vs nil slices (should be equal based on length comparison)
-	emptySlices := &Task{
-		ID:                     "test-empty",
-		Name:                   "Empty Slices",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{},
-		PrerequisiteIDs:        []string{},
-		DownstreamRequiredIDs:  []string{},
-		DownstreamSuggestedIDs: []string{},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	nilSlices := &Task{
-		ID:                     "test-empty",
-		Name:                   "Empty Slices",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   nil,
-		PrerequisiteIDs:        nil,
-		DownstreamRequiredIDs:  nil,
-		DownstreamSuggestedIDs: nil,
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if !emptySlices.Equals(nilSlices) {
-		t.Error("Tasks with empty slices and nil slices should be equal")
-	}
-
-	// Test 20: Pointer fields should not affect equality
-	withPointers := &Task{
-		ID:                     "test-1",
-		Name:                   "Test Task",
-		Summary:                "Summary",
-		Description:            "Description",
-		Tags:                   []string{"tag1", "tag2"},
-		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
-		DownstreamRequiredIDs:  []string{"required-1"},
-		DownstreamSuggestedIDs: []string{"suggested-1"},
-		Prerequisites:          []*Task{{ID: "different"}},
-		DownstreamRequired:     []*Task{{ID: "different"}},
-		DownstreamSuggested:    []*Task{{ID: "different"}},
-		CreatedAt:              now,
-		UpdatedAt:              now,
-	}
-	if !baseTask.Equals(withPointers) {
-		t.Error("Pointer fields should not affect equality comparison")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.task1.Equals(tt.task2)
+			if got != tt.shouldEqual {
+				t.Errorf("Equals() = %v, want %v", got, tt.shouldEqual)
+			}
+		})
 	}
 }
