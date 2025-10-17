@@ -1,0 +1,22 @@
+id: generic-lint-code
+name: Lint Code
+summary: Run static analysis and linting tools
+description: |-
+    Runs linters to check for code quality issues, potential bugs, and style violations.
+
+    Common linters by language:
+    - Go: `golangci-lint run` or `go vet ./...`
+    - Python: `pylint` or `flake8` or `ruff check`
+    - JavaScript/TypeScript: `eslint .` or `npm run lint`
+    - Java: `checkstyle` or `pmd`
+    - Rust: `cargo clippy`
+    - Ruby: `rubocop`
+    - C/C++: `clang-tidy` or `cppcheck`
+
+    Linting should pass before merging code to main branch.
+tags:
+    - code-quality
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

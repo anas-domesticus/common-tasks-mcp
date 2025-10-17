@@ -1,0 +1,21 @@
+id: generic-run-unit-tests
+name: Run Unit Tests
+summary: Run all unit tests in the project
+description: |-
+    Runs the project's unit test suite to verify code correctness.
+
+    Common commands by language/framework:
+    - Go: `go test ./...`
+    - Python: `pytest` or `python -m unittest`
+    - Node.js: `npm test` or `yarn test`
+    - Java: `mvn test` or `gradle test`
+    - Rust: `cargo test`
+    - Ruby: `rake test` or `rspec`
+
+    Adapt the command to match your project's test framework and configuration.
+tags:
+    - testing
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

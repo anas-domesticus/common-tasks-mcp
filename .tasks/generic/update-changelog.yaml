@@ -1,0 +1,31 @@
+id: generic-update-changelog
+name: Update Changelog
+summary: Update CHANGELOG.md with recent changes
+description: |-
+    Updates the CHANGELOG.md file to document changes, fixes, and new features.
+
+    File location: `CHANGELOG.md`
+
+    Common changelog formats:
+    - Keep a Changelog (keepachangelog.com): Groups changes by Added, Changed, Deprecated, Removed, Fixed, Security
+    - Semantic versioning: Version numbers follow MAJOR.MINOR.PATCH
+    - Release notes: Grouped by release date or version
+
+    Typical sections:
+    - ## [Unreleased] - for changes not yet released
+    - ## [Version] - YYYY-MM-DD - for released versions
+    - ### Added - new features
+    - ### Changed - changes to existing functionality
+    - ### Deprecated - features to be removed
+    - ### Removed - removed features
+    - ### Fixed - bug fixes
+    - ### Security - security fixes
+
+    Update changelog before creating releases or when significant changes are made.
+tags:
+    - documentation
+    - release
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

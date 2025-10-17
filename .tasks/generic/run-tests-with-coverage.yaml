@@ -1,0 +1,22 @@
+id: generic-run-tests-with-coverage
+name: Run Tests with Coverage
+summary: Run unit tests with code coverage reporting
+description: |-
+    Runs unit tests with coverage analysis to measure how much of the codebase is tested.
+
+    Common commands by language/framework:
+    - Go: `go test -cover ./...` or `go test -coverprofile=coverage.out ./...`
+    - Python: `pytest --cov` or `coverage run -m pytest`
+    - Node.js: `npm test -- --coverage` or `jest --coverage`
+    - Java: `mvn test jacoco:report` or `gradle test jacocoTestReport`
+    - Rust: `cargo tarpaulin` or `cargo llvm-cov`
+    - Ruby: `COVERAGE=true rake test`
+
+    Many projects have coverage thresholds configured in CI/CD pipelines.
+tags:
+    - testing
+    - code-quality
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

@@ -1,0 +1,30 @@
+id: generic-clean-build-artifacts
+name: Clean Build Artifacts
+summary: Remove compiled binaries, build outputs, and temporary files
+description: |-
+    Removes build artifacts and temporary files to ensure a clean build environment.
+
+    Common commands by language/ecosystem:
+    - Go: `go clean` or `rm -rf bin/`
+    - Python: `find . -type d -name __pycache__ -exec rm -rf {} +` and `rm -rf build/ dist/ *.egg-info`
+    - Node.js: `rm -rf node_modules/ dist/ build/`
+    - Java: `mvn clean` or `gradle clean`
+    - Rust: `cargo clean`
+    - Ruby: `rake clean`
+    - Make: `make clean`
+
+    Common artifacts to remove:
+    - Compiled binaries and executables
+    - Intermediate build files
+    - Cached files and directories
+    - Test coverage reports
+    - Log files
+
+    This is useful before a fresh build or when troubleshooting build issues.
+tags:
+    - build
+    - cleanup
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

@@ -1,0 +1,24 @@
+id: generic-update-dependencies
+name: Update Project Dependencies
+summary: Update dependencies to their latest compatible versions
+description: |-
+    Updates project dependencies to newer versions while respecting version constraints.
+
+    Common commands by language/ecosystem:
+    - Go: `go get -u ./...` or `go get -u all`
+    - Python: `pip install --upgrade -r requirements.txt` or `poetry update`
+    - Node.js: `npm update` or `yarn upgrade` or `pnpm update`
+    - Java: `mvn versions:use-latest-releases` or `gradle dependencyUpdates`
+    - Rust: `cargo update`
+    - Ruby: `bundle update`
+    - PHP: `composer update`
+
+    Review changes carefully and test thoroughly after updating dependencies.
+tags:
+    - dependencies
+    - maintenance
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested:
+    - generic-run-unit-tests

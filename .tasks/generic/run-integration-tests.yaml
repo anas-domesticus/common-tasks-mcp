@@ -1,0 +1,27 @@
+id: generic-run-integration-tests
+name: Run Integration Tests
+summary: Run integration tests that verify component interactions
+description: |-
+    Runs integration tests that verify multiple components work correctly together.
+
+    Integration tests typically:
+    - Test interactions between modules, services, or layers
+    - May require external dependencies (databases, APIs, message queues)
+    - Run slower than unit tests
+    - Often run in CI/CD pipelines before deployment
+
+    Common approaches by language:
+    - Go: `go test -tags=integration ./...` or separate test directories
+    - Python: `pytest tests/integration/` or `pytest -m integration`
+    - Node.js: `npm run test:integration` (custom script)
+    - Java: `mvn verify` or `gradle integrationTest`
+    - Rust: `cargo test --test integration_*`
+
+    Configure test tags, markers, or separate directories to distinguish integration from unit tests.
+tags:
+    - testing
+    - integration
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

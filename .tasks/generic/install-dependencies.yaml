@@ -1,0 +1,23 @@
+id: generic-install-dependencies
+name: Install Project Dependencies
+summary: Install or download project dependencies
+description: |-
+    Installs project dependencies based on language-specific package managers.
+
+    Common commands by language/ecosystem:
+    - Go: `go mod download` or `go get ./...`
+    - Python: `pip install -r requirements.txt` or `poetry install`
+    - Node.js: `npm install` or `yarn install` or `pnpm install`
+    - Java: `mvn install` or `gradle build`
+    - Rust: `cargo build` (fetches dependencies automatically)
+    - Ruby: `bundle install`
+    - PHP: `composer install`
+
+    This is typically run after cloning a repository or when dependency files change.
+tags:
+    - dependencies
+    - setup
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

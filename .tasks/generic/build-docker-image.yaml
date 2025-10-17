@@ -1,0 +1,25 @@
+id: generic-build-docker-image
+name: Build Docker Image
+summary: Build a Docker container image for the project
+description: |-
+    Builds a Docker container image from the project's Dockerfile.
+
+    Basic command: `docker build -t <image-name>:<tag> .`
+
+    Common options:
+    - `-t name:tag`: Tag the image with a name and version
+    - `-f Dockerfile.prod`: Use a specific Dockerfile
+    - `--build-arg KEY=VALUE`: Pass build arguments
+    - `--target stage`: Build only up to a specific stage in multi-stage builds
+    - `--no-cache`: Build without using cached layers
+
+    Example: `docker build -t myapp:latest .`
+
+    Multi-stage builds are common for optimizing image size by separating build and runtime dependencies.
+tags:
+    - docker
+    - build
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

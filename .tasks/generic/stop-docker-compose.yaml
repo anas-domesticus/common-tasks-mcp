@@ -1,0 +1,22 @@
+id: generic-stop-docker-compose
+name: Stop Docker Compose Stack
+summary: Stop services running in Docker Compose
+description: |-
+    Stops all services defined in the Docker Compose configuration.
+
+    Command: `docker compose down`
+
+    Common options:
+    - `--volumes` or `-v`: Also remove volumes
+    - `--remove-orphans`: Remove containers for services not in the compose file
+    - `--rmi all`: Remove all images used by services
+    - `--timeout <seconds>`: Custom shutdown timeout (default: 10s)
+
+    Use `docker compose stop` to stop without removing containers.
+tags:
+    - docker
+    - cleanup
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

@@ -1,0 +1,32 @@
+id: generic-run-e2e-tests
+name: Run End-to-End Tests
+summary: Run end-to-end tests that simulate real user workflows
+description: |-
+    Runs end-to-end (E2E) tests that simulate complete user workflows through the entire application.
+
+    E2E tests typically:
+    - Test the full application stack (frontend, backend, database)
+    - Simulate real user interactions
+    - Run in browser environments for web apps
+    - Are the slowest and most expensive tests
+    - Provide highest confidence in system behavior
+
+    Common E2E frameworks:
+    - JavaScript/TypeScript: Playwright, Cypress, Selenium, Puppeteer
+    - Python: Selenium, Playwright
+    - Java: Selenium, Cucumber
+    - Ruby: Capybara, Cucumber
+
+    Example commands:
+    - `npx playwright test`
+    - `npx cypress run`
+    - `pytest tests/e2e/`
+
+    E2E tests often require a running instance of the application and dependencies.
+tags:
+    - testing
+    - e2e
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

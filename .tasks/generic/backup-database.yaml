@@ -1,0 +1,33 @@
+id: generic-backup-database
+name: Backup Database
+summary: Create a backup of the database
+description: |-
+    Creates a backup/dump of the database for disaster recovery or migration.
+
+    Common backup commands by database:
+    - PostgreSQL: `pg_dump dbname > backup.sql` or `pg_dump -Fc dbname > backup.dump`
+    - MySQL/MariaDB: `mysqldump dbname > backup.sql` or `mysqldump --all-databases > all_backup.sql`
+    - MongoDB: `mongodump --db dbname --out /backup/dir/`
+    - SQLite: `sqlite3 database.db ".backup 'backup.db'"` or simply copy the file
+    - Redis: `redis-cli SAVE` or `redis-cli BGSAVE` (creates dump.rdb)
+
+    Best practices:
+    - Automate backups on schedule (cron, scheduled tasks)
+    - Store backups in separate location/server
+    - Encrypt sensitive data in backups
+    - Test restore procedures regularly
+    - Include timestamp in backup filename: `backup_$(date +%Y%m%d_%H%M%S).sql`
+    - Compress large backups: `pg_dump dbname | gzip > backup.sql.gz`
+
+    Restoration:
+    - PostgreSQL: `psql dbname < backup.sql`
+    - MySQL: `mysql dbname < backup.sql`
+    - MongoDB: `mongorestore --db dbname /backup/dir/dbname/`
+tags:
+    - database
+    - backup
+    - operations
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

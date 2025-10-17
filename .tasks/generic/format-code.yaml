@@ -1,0 +1,22 @@
+id: generic-format-code
+name: Format Code
+summary: Format source code using language-specific formatters
+description: |-
+    Formats source code according to language conventions and project style guides.
+
+    Common formatters by language:
+    - Go: `gofmt -w .` or `go fmt ./...`
+    - Python: `black .` or `autopep8 --in-place --recursive .`
+    - JavaScript/TypeScript: `prettier --write .` or `npm run format`
+    - Java: `mvn formatter:format` or `google-java-format`
+    - Rust: `cargo fmt`
+    - Ruby: `rubocop -a` or `standardrb --fix`
+    - C/C++: `clang-format -i **/*.{c,cpp,h}`
+
+    Run this before committing code to ensure consistent formatting.
+tags:
+    - code-quality
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []

@@ -1,0 +1,36 @@
+id: generic-update-gitlab-ci
+name: Update GitLab CI Pipeline
+summary: Modify CI/CD pipeline in .gitlab-ci.yml
+description: |-
+    Updates GitLab CI/CD pipeline configuration to modify automation workflows.
+
+    File location: `.gitlab-ci.yml`
+
+    Pipeline structure:
+    - Stages: Sequential groups of jobs (e.g., build, test, deploy)
+    - Jobs: Individual tasks within stages
+    - Scripts: Commands to execute
+    - Artifacts: Files passed between jobs
+    - Cache: Directories cached between pipeline runs
+
+    Common stages:
+    - build: Compile code, create artifacts
+    - test: Run unit tests, integration tests
+    - quality: Linting, code coverage, security scans
+    - deploy: Deploy to environments (staging, production)
+
+    Common features:
+    - `only`/`except` or `rules`: Control when jobs run
+    - `needs`: Job dependencies (DAG)
+    - `services`: Docker containers for job (databases, etc.)
+    - `variables`: Environment variables
+    - `include`: Include external pipeline configs
+
+    Validate pipeline: `gitlab-ci-lint` or GitLab UI pipeline editor
+tags:
+    - cicd
+    - gitlab
+    - generic
+prerequisites: []
+downstream_required: []
+downstream_suggested: []
