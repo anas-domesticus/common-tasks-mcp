@@ -1,6 +1,10 @@
 package task_manager
 
-import "common-tasks-mcp/pkg/types"
+import (
+	"fmt"
+
+	"common-tasks-mcp/pkg/types"
+)
 
 // PopulateTagCache builds the tag cache by iterating through all tasks
 // and indexing them by their tags for efficient tag-based lookups
@@ -14,4 +18,18 @@ func (m *Manager) PopulateTagCache() {
 			m.tagCache[tag] = append(m.tagCache[tag], task)
 		}
 	}
+}
+
+// GetTasksByTag retrieves all tasks with the specified tag
+func (m *Manager) GetTasksByTag(tag string) ([]*types.Task, error) {
+	if tag == "" {
+		return nil, fmt.Errorf("tag cannot be empty")
+	}
+
+	tasks, exists := m.tagCache[tag]
+	if !exists {
+		return []*types.Task{}, nil
+	}
+
+	return tasks, nil
 }
