@@ -12,14 +12,32 @@ import (
 
 // Manager handles task graph operations
 type Manager struct {
-	tasks map[string]*types.Task
+	tasks    map[string]*types.Task
+	tagCache map[string][]*types.Task
 }
 
 // NewManager creates a new task manager instance
 func NewManager() *Manager {
 	return &Manager{
-		tasks: make(map[string]*types.Task),
+		tasks:    make(map[string]*types.Task),
+		tagCache: make(map[string][]*types.Task),
 	}
+}
+
+// AddTask adds a task to the manager
+func (m *Manager) AddTask(task *types.Task) error {
+	if task == nil {
+		return fmt.Errorf("task cannot be nil")
+	}
+	if task.ID == "" {
+		return fmt.Errorf("task ID cannot be empty")
+	}
+	if _, exists := m.tasks[task.ID]; exists {
+		return fmt.Errorf("task with ID %s already exists", task.ID)
+	}
+
+	m.tasks[task.ID] = task
+	return nil
 }
 
 // Load reads all YAML files from the specified directory and loads tasks

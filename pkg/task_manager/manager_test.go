@@ -148,3 +148,104 @@ func TestPersistAndLoad(t *testing.T) {
 		}
 	}
 }
+
+func TestAddTask(t *testing.T) {
+	manager := NewManager()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Test adding a valid task
+	task1 := &types.Task{
+		ID:          "task-1",
+		Name:        "Test Task 1",
+		Summary:     "First test task",
+		Description: "A valid task to add",
+		Tags:        []string{"test"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	err := manager.AddTask(task1)
+	if err != nil {
+		t.Fatalf("Expected no error when adding valid task, got: %v", err)
+	}
+
+	// Verify task was added
+	if len(manager.tasks) != 1 {
+		t.Errorf("Expected 1 task in manager, got %d", len(manager.tasks))
+	}
+
+	addedTask, exists := manager.tasks["task-1"]
+	if !exists {
+		t.Error("Task was not added to manager")
+	} else if addedTask.ID != task1.ID {
+		t.Errorf("Added task ID mismatch: expected %s, got %s", task1.ID, addedTask.ID)
+	}
+
+	// Test adding a nil task
+	err = manager.AddTask(nil)
+	if err == nil {
+		t.Error("Expected error when adding nil task, got nil")
+	} else if err.Error() != "task cannot be nil" {
+		t.Errorf("Expected 'task cannot be nil' error, got: %v", err)
+	}
+
+	// Test adding a task with empty ID
+	task2 := &types.Task{
+		ID:          "",
+		Name:        "Task with empty ID",
+		Summary:     "Invalid task",
+		Description: "Task with empty ID",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	err = manager.AddTask(task2)
+	if err == nil {
+		t.Error("Expected error when adding task with empty ID, got nil")
+	} else if err.Error() != "task ID cannot be empty" {
+		t.Errorf("Expected 'task ID cannot be empty' error, got: %v", err)
+	}
+
+	// Test adding a duplicate task
+	task3 := &types.Task{
+		ID:          "task-1",
+		Name:        "Duplicate Task",
+		Summary:     "This is a duplicate",
+		Description: "Task with duplicate ID",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	err = manager.AddTask(task3)
+	if err == nil {
+		t.Error("Expected error when adding duplicate task, got nil")
+	} else if err.Error() != "task with ID task-1 already exists" {
+		t.Errorf("Expected duplicate task error, got: %v", err)
+	}
+
+	// Verify only the first task remains
+	if len(manager.tasks) != 1 {
+		t.Errorf("Expected 1 task in manager after duplicate attempt, got %d", len(manager.tasks))
+	}
+
+	// Test adding another valid task
+	task4 := &types.Task{
+		ID:          "task-4",
+		Name:        "Test Task 4",
+		Summary:     "Fourth test task",
+		Description: "Another valid task",
+		Tags:        []string{"test", "second"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	err = manager.AddTask(task4)
+	if err != nil {
+		t.Fatalf("Expected no error when adding second valid task, got: %v", err)
+	}
+
+	// Verify both tasks are present
+	if len(manager.tasks) != 2 {
+		t.Errorf("Expected 2 tasks in manager, got %d", len(manager.tasks))
+	}
+}
