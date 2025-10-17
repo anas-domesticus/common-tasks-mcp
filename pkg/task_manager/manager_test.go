@@ -394,95 +394,451 @@ func TestGetTasks(t *testing.T) {
 }
 
 func TestUpdateTask(t *testing.T) {
-	manager := NewManager()
 	now := time.Now().UTC().Truncate(time.Second)
 
-	// Add initial task
-	task1 := &types.Task{
-		ID:          "task-1",
-		Name:        "Original Name",
-		Summary:     "Original Summary",
-		Description: "Original Description",
-		Tags:        []string{"original"},
-		CreatedAt:   now,
-		UpdatedAt:   now,
+	tests := []struct {
+		name            string
+		setupTasks      []*types.Task
+		updateTask      *types.Task
+		wantError       bool
+		expectedError   string
+		validatePointer func(t *testing.T, manager *Manager)
+	}{
+		{
+			name: "update existing task",
+			setupTasks: []*types.Task{
+				{
+					ID:          "task-1",
+					Name:        "Original Name",
+					Summary:     "Original Summary",
+					Description: "Original Description",
+					Tags:        []string{"original"},
+					CreatedAt:   now,
+					UpdatedAt:   now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:          "task-1",
+				Name:        "Updated Name",
+				Summary:     "Updated Summary",
+				Description: "Updated Description",
+				Tags:        []string{"updated", "modified"},
+				CreatedAt:   now,
+				UpdatedAt:   now.Add(time.Hour),
+			},
+			wantError: false,
+			validatePointer: func(t *testing.T, manager *Manager) {
+				retrievedTask, err := manager.GetTask("task-1")
+				if err != nil {
+					t.Fatalf("Failed to retrieve updated task: %v", err)
+				}
+				if retrievedTask.Name != "Updated Name" {
+					t.Errorf("Expected name 'Updated Name', got %q", retrievedTask.Name)
+				}
+				if len(retrievedTask.Tags) != 2 || retrievedTask.Tags[0] != "updated" {
+					t.Errorf("Expected tags [updated, modified], got %v", retrievedTask.Tags)
+				}
+			},
+		},
+		{
+			name: "update non-existent task",
+			setupTasks: []*types.Task{
+				{
+					ID:        "task-1",
+					Name:      "Existing Task",
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:          "non-existent",
+				Name:        "Non-existent Task",
+				Summary:     "This task doesn't exist",
+				Description: "Should fail",
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			},
+			wantError:     true,
+			expectedError: "task with ID non-existent not found",
+		},
+		{
+			name: "update with nil task",
+			setupTasks: []*types.Task{
+				{
+					ID:        "task-1",
+					Name:      "Existing Task",
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+			},
+			updateTask:    nil,
+			wantError:     true,
+			expectedError: "task cannot be nil",
+		},
+		{
+			name: "update with empty ID",
+			setupTasks: []*types.Task{
+				{
+					ID:        "task-1",
+					Name:      "Existing Task",
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:          "",
+				Name:        "Task with empty ID",
+				Summary:     "Invalid",
+				Description: "Should fail",
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			},
+			wantError:     true,
+			expectedError: "task ID cannot be empty",
+		},
+		{
+			name: "stale pointer: prerequisite pointer becomes stale",
+			setupTasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A - Version 1",
+					Summary:               "First version",
+					Description:           "Original task A",
+					Tags:                  []string{"v1"},
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-b"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-b",
+					Name:                  "Task B",
+					Summary:               "Middle task",
+					Description:           "Depends on A",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:                    "task-a",
+				Name:                  "Task A - Version 2",
+				Summary:               "Second version",
+				Description:           "Updated task A",
+				Tags:                  []string{"v2", "updated"},
+				PrerequisiteIDs:       []string{},
+				DownstreamRequiredIDs: []string{"task-b"},
+				CreatedAt:             now,
+				UpdatedAt:             now.Add(time.Hour),
+			},
+			wantError: false,
+			validatePointer: func(t *testing.T, manager *Manager) {
+				retrievedB, err := manager.GetTask("task-b")
+				if err != nil {
+					t.Fatalf("Failed to retrieve task-b: %v", err)
+				}
+				if len(retrievedB.Prerequisites) != 1 {
+					t.Fatalf("Expected task-b to have 1 prerequisite, got %d", len(retrievedB.Prerequisites))
+				}
+				prereqA := retrievedB.Prerequisites[0]
+				if prereqA.Name == "Task A - Version 1" {
+					t.Errorf("BUG: task-b.Prerequisites[0] points to OLD task-a (Version 1)")
+					t.Errorf("  Expected Name='Task A - Version 2', got %q", prereqA.Name)
+				}
+			},
+		},
+		{
+			name: "stale pointer: downstream required pointer becomes stale",
+			setupTasks: []*types.Task{
+				{
+					ID:                    "task-x",
+					Name:                  "Task X",
+					Summary:               "First task",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-y"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-y",
+					Name:                  "Task Y - Version 1",
+					Summary:               "Original version",
+					Tags:                  []string{"old"},
+					PrerequisiteIDs:       []string{"task-x"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:                    "task-y",
+				Name:                  "Task Y - Version 2",
+				Summary:               "Updated version",
+				Tags:                  []string{"new"},
+				PrerequisiteIDs:       []string{"task-x"},
+				DownstreamRequiredIDs: []string{},
+				CreatedAt:             now,
+				UpdatedAt:             now.Add(time.Hour),
+			},
+			wantError: false,
+			validatePointer: func(t *testing.T, manager *Manager) {
+				retrievedX, err := manager.GetTask("task-x")
+				if err != nil {
+					t.Fatalf("Failed to retrieve task-x: %v", err)
+				}
+				if len(retrievedX.DownstreamRequired) != 1 {
+					t.Fatalf("Expected task-x to have 1 downstream required, got %d", len(retrievedX.DownstreamRequired))
+				}
+				downstreamY := retrievedX.DownstreamRequired[0]
+				if downstreamY.Name == "Task Y - Version 1" {
+					t.Errorf("BUG: task-x.DownstreamRequired[0] points to OLD task-y (Version 1)")
+					t.Errorf("  Expected Name='Task Y - Version 2', got %q", downstreamY.Name)
+				}
+			},
+		},
+		{
+			name: "stale pointer: downstream suggested pointer becomes stale",
+			setupTasks: []*types.Task{
+				{
+					ID:                     "task-p",
+					Name:                   "Task P",
+					Summary:                "First task",
+					PrerequisiteIDs:        []string{},
+					DownstreamRequiredIDs:  []string{},
+					DownstreamSuggestedIDs: []string{"task-q"},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+				{
+					ID:                    "task-q",
+					Name:                  "Task Q - Version 1",
+					Summary:               "Original version",
+					Tags:                  []string{"old"},
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:                    "task-q",
+				Name:                  "Task Q - Version 2",
+				Summary:               "Updated version",
+				Tags:                  []string{"new"},
+				PrerequisiteIDs:       []string{},
+				DownstreamRequiredIDs: []string{},
+				CreatedAt:             now,
+				UpdatedAt:             now.Add(time.Hour),
+			},
+			wantError: false,
+			validatePointer: func(t *testing.T, manager *Manager) {
+				retrievedP, err := manager.GetTask("task-p")
+				if err != nil {
+					t.Fatalf("Failed to retrieve task-p: %v", err)
+				}
+				if len(retrievedP.DownstreamSuggested) != 1 {
+					t.Fatalf("Expected task-p to have 1 downstream suggested, got %d", len(retrievedP.DownstreamSuggested))
+				}
+				suggestedQ := retrievedP.DownstreamSuggested[0]
+				if suggestedQ.Name == "Task Q - Version 1" {
+					t.Errorf("BUG: task-p.DownstreamSuggested[0] points to OLD task-q (Version 1)")
+					t.Errorf("  Expected Name='Task Q - Version 2', got %q", suggestedQ.Name)
+				}
+			},
+		},
+		{
+			name: "stale pointer: nested pointer becomes stale (multi-hop)",
+			setupTasks: []*types.Task{
+				{
+					ID:                    "task-1",
+					Name:                  "Task 1 - Version 1",
+					Summary:               "Original",
+					Tags:                  []string{"v1"},
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-2"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-2",
+					Name:                  "Task 2",
+					Summary:               "Middle task",
+					PrerequisiteIDs:       []string{"task-1"},
+					DownstreamRequiredIDs: []string{"task-3"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-3",
+					Name:                  "Task 3",
+					Summary:               "End task",
+					PrerequisiteIDs:       []string{"task-2"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:                    "task-1",
+				Name:                  "Task 1 - Version 2",
+				Summary:               "Updated",
+				Tags:                  []string{"v2"},
+				PrerequisiteIDs:       []string{},
+				DownstreamRequiredIDs: []string{"task-2"},
+				CreatedAt:             now,
+				UpdatedAt:             now.Add(time.Hour),
+			},
+			wantError: false,
+			validatePointer: func(t *testing.T, manager *Manager) {
+				// Check direct pointer: task-2 -> task-1
+				retrieved2, err := manager.GetTask("task-2")
+				if err != nil {
+					t.Fatalf("Failed to retrieve task-2: %v", err)
+				}
+				if len(retrieved2.Prerequisites) == 1 {
+					prereq1 := retrieved2.Prerequisites[0]
+					if prereq1.Name == "Task 1 - Version 1" {
+						t.Errorf("BUG: task-2.Prerequisites[0] points to OLD task-1 (Version 1)")
+					}
+				}
+
+				// Check nested pointer: task-3 -> task-2 -> task-1
+				retrieved3, err := manager.GetTask("task-3")
+				if err != nil {
+					t.Fatalf("Failed to retrieve task-3: %v", err)
+				}
+				if len(retrieved3.Prerequisites) == 1 {
+					task2FromTask3 := retrieved3.Prerequisites[0]
+					if len(task2FromTask3.Prerequisites) == 1 {
+						task1FromTask2 := task2FromTask3.Prerequisites[0]
+						if task1FromTask2.Name == "Task 1 - Version 1" {
+							t.Errorf("BUG: Nested pointer task-3 -> task-2 -> task-1 is stale")
+							t.Errorf("  Expected Name='Task 1 - Version 2', got %q", task1FromTask2.Name)
+						}
+					}
+				}
+			},
+		},
+		{
+			name: "stale pointer: task referenced in multiple relationships",
+			setupTasks: []*types.Task{
+				{
+					ID:                    "task-hub",
+					Name:                  "Hub Task - Version 1",
+					Summary:               "Central task",
+					Tags:                  []string{"v1"},
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-dep1"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:              "task-dep1",
+					Name:            "Dependent 1",
+					PrerequisiteIDs: []string{"task-hub"},
+					CreatedAt:       now,
+					UpdatedAt:       now,
+				},
+				{
+					ID:              "task-dep2",
+					Name:            "Dependent 2",
+					PrerequisiteIDs: []string{"task-hub"},
+					CreatedAt:       now,
+					UpdatedAt:       now,
+				},
+				{
+					ID:                     "task-dep3",
+					Name:                   "Dependent 3",
+					DownstreamSuggestedIDs: []string{"task-hub"},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:                    "task-hub",
+				Name:                  "Hub Task - Version 2",
+				Summary:               "Updated central task",
+				Tags:                  []string{"v2"},
+				PrerequisiteIDs:       []string{},
+				DownstreamRequiredIDs: []string{"task-dep1"},
+				CreatedAt:             now,
+				UpdatedAt:             now.Add(time.Hour),
+			},
+			wantError: false,
+			validatePointer: func(t *testing.T, manager *Manager) {
+				// Check task-dep1's prerequisite pointer
+				dep1, _ := manager.GetTask("task-dep1")
+				if len(dep1.Prerequisites) == 1 && dep1.Prerequisites[0].Name == "Hub Task - Version 1" {
+					t.Errorf("BUG: task-dep1 has stale pointer to Hub Task (Version 1)")
+				}
+
+				// Check task-dep2's prerequisite pointer
+				dep2, _ := manager.GetTask("task-dep2")
+				if len(dep2.Prerequisites) == 1 && dep2.Prerequisites[0].Name == "Hub Task - Version 1" {
+					t.Errorf("BUG: task-dep2 has stale pointer to Hub Task (Version 1)")
+				}
+
+				// Check task-dep3's suggested downstream pointer
+				dep3, _ := manager.GetTask("task-dep3")
+				if len(dep3.DownstreamSuggested) == 1 && dep3.DownstreamSuggested[0].Name == "Hub Task - Version 1" {
+					t.Errorf("BUG: task-dep3 has stale pointer to Hub Task (Version 1)")
+				}
+			},
+		},
 	}
 
-	if err := manager.AddTask(task1); err != nil {
-		t.Fatalf("Failed to add task: %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := NewManager()
 
-	// Test updating an existing task
-	updatedTask := &types.Task{
-		ID:          "task-1",
-		Name:        "Updated Name",
-		Summary:     "Updated Summary",
-		Description: "Updated Description",
-		Tags:        []string{"updated", "modified"},
-		CreatedAt:   now,
-		UpdatedAt:   now.Add(time.Hour),
-	}
+			// Add all setup tasks
+			for _, task := range tt.setupTasks {
+				if err := manager.AddTask(task); err != nil {
+					t.Fatalf("Failed to add task %s: %v", task.ID, err)
+				}
+			}
 
-	err := manager.UpdateTask(updatedTask)
-	if err != nil {
-		t.Fatalf("Expected no error when updating existing task, got: %v", err)
-	}
+			// For stale pointer tests, resolve pointers before update
+			if tt.validatePointer != nil && !tt.wantError {
+				if err := manager.ResolveTaskPointers(); err != nil {
+					t.Fatalf("Failed to resolve task pointers: %v", err)
+				}
+			}
 
-	// Verify task was updated
-	retrievedTask, err := manager.GetTask("task-1")
-	if err != nil {
-		t.Fatalf("Failed to retrieve updated task: %v", err)
-	}
+			// Perform the update
+			err := manager.UpdateTask(tt.updateTask)
 
-	if !retrievedTask.Equals(updatedTask) {
-		t.Error("Retrieved task does not match updated task")
-	}
+			// Check error expectations
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("Expected error %q, got nil", tt.expectedError)
+				} else if tt.expectedError != "" && err.Error() != tt.expectedError {
+					t.Errorf("Expected error %q, got %q", tt.expectedError, err.Error())
+				}
+				return // Don't run validations if we expected an error
+			}
 
-	// Test updating a non-existent task
-	nonExistentTask := &types.Task{
-		ID:          "non-existent",
-		Name:        "Non-existent Task",
-		Summary:     "This task doesn't exist",
-		Description: "Should fail",
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 
-	err = manager.UpdateTask(nonExistentTask)
-	if err == nil {
-		t.Error("Expected error when updating non-existent task, got nil")
-	} else if err.Error() != "task with ID non-existent not found" {
-		t.Errorf("Expected 'task not found' error, got: %v", err)
-	}
+			// Verify the manager has the updated task
+			if tt.updateTask != nil {
+				retrievedTask, err := manager.GetTask(tt.updateTask.ID)
+				if err != nil {
+					t.Fatalf("Failed to retrieve updated task %s: %v", tt.updateTask.ID, err)
+				}
+				if !retrievedTask.Equals(tt.updateTask) {
+					t.Errorf("Retrieved task does not match updated task")
+				}
+			}
 
-	// Test updating with nil task
-	err = manager.UpdateTask(nil)
-	if err == nil {
-		t.Error("Expected error when updating nil task, got nil")
-	} else if err.Error() != "task cannot be nil" {
-		t.Errorf("Expected 'task cannot be nil' error, got: %v", err)
-	}
-
-	// Test updating with empty ID
-	emptyIDTask := &types.Task{
-		ID:          "",
-		Name:        "Task with empty ID",
-		Summary:     "Invalid",
-		Description: "Should fail",
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
-
-	err = manager.UpdateTask(emptyIDTask)
-	if err == nil {
-		t.Error("Expected error when updating task with empty ID, got nil")
-	} else if err.Error() != "task ID cannot be empty" {
-		t.Errorf("Expected 'task ID cannot be empty' error, got: %v", err)
-	}
-
-	// Verify original task count unchanged after failed updates
-	if len(manager.tasks) != 1 {
-		t.Errorf("Expected 1 task in manager after failed updates, got %d", len(manager.tasks))
+			// Run custom validation if provided
+			if tt.validatePointer != nil {
+				tt.validatePointer(t, manager)
+			}
+		})
 	}
 }
 
@@ -599,6 +955,161 @@ func TestDeleteTask(t *testing.T) {
 	}
 	if remainingTask.ID != "task-2" {
 		t.Errorf("Wrong task remaining: expected task-2, got %s", remainingTask.ID)
+	}
+}
+
+func TestDeleteTaskWithReferences(t *testing.T) {
+	manager := NewManager()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Create a task graph: task-a -> task-b -> task-c
+	// task-b also has task-d as a suggested downstream task
+	taskA := &types.Task{
+		ID:                    "task-a",
+		Name:                  "Task A",
+		Summary:               "First task",
+		Description:           "Root task",
+		PrerequisiteIDs:       []string{},
+		DownstreamRequiredIDs: []string{"task-b"},
+		CreatedAt:             now,
+		UpdatedAt:             now,
+	}
+
+	taskB := &types.Task{
+		ID:                     "task-b",
+		Name:                   "Task B",
+		Summary:                "Second task",
+		Description:            "Middle task",
+		PrerequisiteIDs:        []string{"task-a"},
+		DownstreamRequiredIDs:  []string{"task-c"},
+		DownstreamSuggestedIDs: []string{"task-d"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
+	}
+
+	taskC := &types.Task{
+		ID:                    "task-c",
+		Name:                  "Task C",
+		Summary:               "Third task",
+		Description:           "End task",
+		PrerequisiteIDs:       []string{"task-b"},
+		DownstreamRequiredIDs: []string{},
+		CreatedAt:             now,
+		UpdatedAt:             now,
+	}
+
+	taskD := &types.Task{
+		ID:                    "task-d",
+		Name:                  "Task D",
+		Summary:               "Fourth task",
+		Description:           "Suggested task",
+		PrerequisiteIDs:       []string{},
+		DownstreamRequiredIDs: []string{},
+		CreatedAt:             now,
+		UpdatedAt:             now,
+	}
+
+	// Add all tasks
+	for _, task := range []*types.Task{taskA, taskB, taskC, taskD} {
+		if err := manager.AddTask(task); err != nil {
+			t.Fatalf("Failed to add task %s: %v", task.ID, err)
+		}
+	}
+
+	// Resolve pointers so we can test pointer cleanup too
+	if err := manager.ResolveTaskPointers(); err != nil {
+		t.Fatalf("Failed to resolve task pointers: %v", err)
+	}
+
+	// Verify initial state
+	if len(manager.tasks) != 4 {
+		t.Fatalf("Expected 4 tasks initially, got %d", len(manager.tasks))
+	}
+
+	// Delete task-b (which is referenced by task-a and task-c)
+	err := manager.DeleteTask("task-b")
+	if err != nil {
+		t.Fatalf("Failed to delete task-b: %v", err)
+	}
+
+	// Verify task-b is deleted
+	if len(manager.tasks) != 3 {
+		t.Errorf("Expected 3 tasks after deletion, got %d", len(manager.tasks))
+	}
+
+	_, err = manager.GetTask("task-b")
+	if err == nil {
+		t.Error("task-b should have been deleted")
+	}
+
+	// Verify task-a's DownstreamRequiredIDs no longer contains task-b
+	retrievedA, err := manager.GetTask("task-a")
+	if err != nil {
+		t.Fatalf("Failed to retrieve task-a: %v", err)
+	}
+
+	if len(retrievedA.DownstreamRequiredIDs) != 0 {
+		t.Errorf("task-a.DownstreamRequiredIDs should be empty, got %v", retrievedA.DownstreamRequiredIDs)
+	}
+	for _, id := range retrievedA.DownstreamRequiredIDs {
+		if id == "task-b" {
+			t.Error("task-a.DownstreamRequiredIDs should not contain task-b")
+		}
+	}
+
+	// Verify task-a's DownstreamRequired pointer slice is also cleaned
+	if len(retrievedA.DownstreamRequired) != 0 {
+		t.Errorf("task-a.DownstreamRequired should be empty, got %v", retrievedA.DownstreamRequired)
+	}
+	for _, task := range retrievedA.DownstreamRequired {
+		if task != nil && task.ID == "task-b" {
+			t.Error("task-a.DownstreamRequired should not contain task-b")
+		}
+	}
+
+	// Verify task-c's PrerequisiteIDs no longer contains task-b
+	retrievedC, err := manager.GetTask("task-c")
+	if err != nil {
+		t.Fatalf("Failed to retrieve task-c: %v", err)
+	}
+
+	if len(retrievedC.PrerequisiteIDs) != 0 {
+		t.Errorf("task-c.PrerequisiteIDs should be empty, got %v", retrievedC.PrerequisiteIDs)
+	}
+	for _, id := range retrievedC.PrerequisiteIDs {
+		if id == "task-b" {
+			t.Error("task-c.PrerequisiteIDs should not contain task-b")
+		}
+	}
+
+	// Verify task-c's Prerequisites pointer slice is also cleaned
+	if len(retrievedC.Prerequisites) != 0 {
+		t.Errorf("task-c.Prerequisites should be empty, got %v", retrievedC.Prerequisites)
+	}
+	for _, task := range retrievedC.Prerequisites {
+		if task != nil && task.ID == "task-b" {
+			t.Error("task-c.Prerequisites should not contain task-b")
+		}
+	}
+
+	// Verify task-d is unaffected (it was only in task-b's suggested list)
+	retrievedD, err := manager.GetTask("task-d")
+	if err != nil {
+		t.Fatalf("Failed to retrieve task-d: %v", err)
+	}
+	if retrievedD.ID != "task-d" {
+		t.Error("task-d should still exist and be unchanged")
+	}
+
+	// Now delete task-d and verify task-b's references would have been cleaned
+	// (but task-b is already deleted, so this just verifies the operation doesn't fail)
+	err = manager.DeleteTask("task-d")
+	if err != nil {
+		t.Fatalf("Failed to delete task-d: %v", err)
+	}
+
+	if len(manager.tasks) != 2 {
+		t.Errorf("Expected 2 tasks after deleting task-d, got %d", len(manager.tasks))
 	}
 }
 

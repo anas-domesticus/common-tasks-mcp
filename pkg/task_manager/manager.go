@@ -56,7 +56,8 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 	return nil
 }
 
-// DeleteTask removes a task from the manager
+// DeleteTask removes a task from the manager and cleans up all references to it
+// from other tasks' prerequisite and downstream lists.
 func (m *Manager) DeleteTask(id string) error {
 	if id == "" {
 		return fmt.Errorf("task ID cannot be empty")
@@ -65,8 +66,77 @@ func (m *Manager) DeleteTask(id string) error {
 		return fmt.Errorf("task with ID %s not found", id)
 	}
 
+	// Remove references to this task from all other tasks
+	for _, task := range m.tasks {
+		if task.ID == id {
+			continue // Skip the task being deleted
+		}
+
+		// Remove from PrerequisiteIDs
+		task.PrerequisiteIDs = removeStringFromSlice(task.PrerequisiteIDs, id)
+		// Remove from Prerequisites pointers if populated
+		if task.Prerequisites != nil {
+			task.Prerequisites = removeTaskFromSlice(task.Prerequisites, id)
+		}
+
+		// Remove from DownstreamRequiredIDs
+		task.DownstreamRequiredIDs = removeStringFromSlice(task.DownstreamRequiredIDs, id)
+		// Remove from DownstreamRequired pointers if populated
+		if task.DownstreamRequired != nil {
+			task.DownstreamRequired = removeTaskFromSlice(task.DownstreamRequired, id)
+		}
+
+		// Remove from DownstreamSuggestedIDs
+		task.DownstreamSuggestedIDs = removeStringFromSlice(task.DownstreamSuggestedIDs, id)
+		// Remove from DownstreamSuggested pointers if populated
+		if task.DownstreamSuggested != nil {
+			task.DownstreamSuggested = removeTaskFromSlice(task.DownstreamSuggested, id)
+		}
+	}
+
+	// Delete the task itself
 	delete(m.tasks, id)
 	return nil
+}
+
+// removeStringFromSlice removes all occurrences of a string from a slice
+func removeStringFromSlice(slice []string, value string) []string {
+	if slice == nil {
+		return nil
+	}
+
+	result := make([]string, 0, len(slice))
+	for _, v := range slice {
+		if v != value {
+			result = append(result, v)
+		}
+	}
+
+	// Return nil if the result is empty to maintain nil vs empty slice distinction
+	if len(result) == 0 && slice != nil {
+		return []string{}
+	}
+	return result
+}
+
+// removeTaskFromSlice removes all tasks with the given ID from a task slice
+func removeTaskFromSlice(slice []*types.Task, id string) []*types.Task {
+	if slice == nil {
+		return nil
+	}
+
+	result := make([]*types.Task, 0, len(slice))
+	for _, task := range slice {
+		if task != nil && task.ID != id {
+			result = append(result, task)
+		}
+	}
+
+	// Return nil if the result is empty to maintain nil vs empty slice distinction
+	if len(result) == 0 && slice != nil {
+		return []*types.Task{}
+	}
+	return result
 }
 
 // ListAllTasks returns all tasks in the manager
