@@ -90,7 +90,7 @@ func (m *Manager) GetDependencies(task *types.Task) ([]*types.Task, error) {
 		return nil, fmt.Errorf("task cannot be nil")
 	}
 
-	return m.getTasks(task.Dependencies)
+	return m.getTasks(task.DependencyIDs)
 }
 
 // GetDependents retrieves all dependent tasks for the given task
@@ -99,7 +99,7 @@ func (m *Manager) GetDependents(task *types.Task) ([]*types.Task, error) {
 		return nil, fmt.Errorf("task cannot be nil")
 	}
 
-	return m.getTasks(task.Dependents)
+	return m.getTasks(task.DependentIDs)
 }
 
 // Load reads all YAML files from the specified directory and loads tasks

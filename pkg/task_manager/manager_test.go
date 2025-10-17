@@ -20,41 +20,41 @@ func TestPersistAndLoad(t *testing.T) {
 
 	// Task A - no dependencies
 	taskA := &types.Task{
-		ID:           "task-a",
-		Name:         "Task A",
-		Summary:      "First task",
-		Description:  "This is the first task with no dependencies",
-		Tags:         []string{"api", "backend"},
-		Dependencies: []string{},
-		Dependents:   []string{"task-b"},
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:            "task-a",
+		Name:          "Task A",
+		Summary:       "First task",
+		Description:   "This is the first task with no dependencies",
+		Tags:          []string{"api", "backend"},
+		DependencyIDs: []string{},
+		DependentIDs:  []string{"task-b"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	// Task B - depends on A, has C as dependent
 	taskB := &types.Task{
-		ID:           "task-b",
-		Name:         "Task B",
-		Summary:      "Second task",
-		Description:  "This task depends on A and has C as dependent",
-		Tags:         []string{"frontend", "api"},
-		Dependencies: []string{"task-a"},
-		Dependents:   []string{"task-c"},
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:            "task-b",
+		Name:          "Task B",
+		Summary:       "Second task",
+		Description:   "This task depends on A and has C as dependent",
+		Tags:          []string{"frontend", "api"},
+		DependencyIDs: []string{"task-a"},
+		DependentIDs:  []string{"task-c"},
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	// Task C - depends on B
 	taskC := &types.Task{
-		ID:           "task-c",
-		Name:         "Task C",
-		Summary:      "Third task",
-		Description:  "This task depends on B",
-		Tags:         []string{"testing"},
-		Dependencies: []string{"task-b"},
-		Dependents:   []string{},
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:            "task-c",
+		Name:          "Task C",
+		Summary:       "Third task",
+		Description:   "This task depends on B",
+		Tags:          []string{"testing"},
+		DependencyIDs: []string{"task-b"},
+		DependentIDs:  []string{},
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	manager1.tasks["task-a"] = taskA
@@ -118,23 +118,23 @@ func TestPersistAndLoad(t *testing.T) {
 		}
 
 		// Compare dependencies
-		if len(originalTask.Dependencies) != len(loadedTask.Dependencies) {
-			t.Errorf("Task %s Dependencies count mismatch: expected %d, got %d", id, len(originalTask.Dependencies), len(loadedTask.Dependencies))
+		if len(originalTask.DependencyIDs) != len(loadedTask.DependencyIDs) {
+			t.Errorf("Task %s Dependencies count mismatch: expected %d, got %d", id, len(originalTask.DependencyIDs), len(loadedTask.DependencyIDs))
 		} else {
-			for i, dep := range originalTask.Dependencies {
-				if dep != loadedTask.Dependencies[i] {
-					t.Errorf("Task %s Dependency %d mismatch: expected %s, got %s", id, i, dep, loadedTask.Dependencies[i])
+			for i, dep := range originalTask.DependencyIDs {
+				if dep != loadedTask.DependencyIDs[i] {
+					t.Errorf("Task %s Dependency %d mismatch: expected %s, got %s", id, i, dep, loadedTask.DependencyIDs[i])
 				}
 			}
 		}
 
 		// Compare dependents
-		if len(originalTask.Dependents) != len(loadedTask.Dependents) {
-			t.Errorf("Task %s Dependents count mismatch: expected %d, got %d", id, len(originalTask.Dependents), len(loadedTask.Dependents))
+		if len(originalTask.DependentIDs) != len(loadedTask.DependentIDs) {
+			t.Errorf("Task %s Dependents count mismatch: expected %d, got %d", id, len(originalTask.DependentIDs), len(loadedTask.DependentIDs))
 		} else {
-			for i, dep := range originalTask.Dependents {
-				if dep != loadedTask.Dependents[i] {
-					t.Errorf("Task %s Dependent %d mismatch: expected %s, got %s", id, i, dep, loadedTask.Dependents[i])
+			for i, dep := range originalTask.DependentIDs {
+				if dep != loadedTask.DependentIDs[i] {
+					t.Errorf("Task %s Dependent %d mismatch: expected %s, got %s", id, i, dep, loadedTask.DependentIDs[i])
 				}
 			}
 		}
