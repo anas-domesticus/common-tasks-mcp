@@ -107,7 +107,11 @@ Transport modes:
 		fmt.Println()
 
 		// Create server
-		srv := server.New(cfg)
+		srv, err := server.New(cfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating server: %v\n", err)
+			os.Exit(1)
+		}
 
 		// Setup context with signal handling
 		ctx, cancel := context.WithCancel(context.Background())

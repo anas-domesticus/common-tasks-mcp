@@ -5,26 +5,42 @@ import (
 	"fmt"
 	"net/http"
 
+	"common-tasks-mcp/pkg/task_manager"
+
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // Server wraps the MCP server
 type Server struct {
-	mcp    *mcp.Server
-	config Config
+	mcp         *mcp.Server
+	config      Config
+	taskManager *task_manager.Manager
 }
 
-// New creates a new MCP server instance
-func New(cfg Config) *Server {
+// New creates a new MCP server instance with a task manager
+func New(cfg Config) (*Server, error) {
+	// Create task manager
+	taskMgr := task_manager.NewManager()
+
+	// Load tasks from directory if any exist
+	if err := taskMgr.LoadFromDir(cfg.Directory); err != nil {
+		// Log the error but continue if directory doesn't exist or is empty
+		if cfg.Verbose {
+			fmt.Printf("Warning: Could not load tasks from %s: %v\n", cfg.Directory, err)
+		}
+	}
+
+	// Create MCP server
 	mcpServer := mcp.NewServer(&mcp.Implementation{
 		Name:    "common-tasks-mcp",
 		Version: "0.1.0",
 	}, nil)
 
 	return &Server{
-		mcp:    mcpServer,
-		config: cfg,
-	}
+		mcp:         mcpServer,
+		config:      cfg,
+		taskManager: taskMgr,
+	}, nil
 }
 
 // RunHTTP starts the MCP server with HTTP transport

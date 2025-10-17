@@ -404,9 +404,9 @@ func (m *Manager) findCyclesDFS(taskID string, visited, recStack map[string]bool
 
 // LoadFromDir reads all YAML files from the specified directory and loads tasks
 func (m *Manager) LoadFromDir(dirPath string) error {
-	// Check if directory exists
-	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-		return fmt.Errorf("directory does not exist: %s", dirPath)
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Read all .yaml files in the directory
@@ -440,7 +440,14 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 	}
 
 	// Resolve task pointers after loading all tasks and validating no cycles
-	return m.ResolveTaskPointers()
+	if err := m.ResolveTaskPointers(); err != nil {
+		return err
+	}
+
+	// Populate tag cache for efficient tag-based lookups
+	m.PopulateTagCache()
+
+	return nil
 }
 
 // PersistToDir writes all tasks to the specified directory as YAML files
