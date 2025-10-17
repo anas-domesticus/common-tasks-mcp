@@ -34,7 +34,7 @@ Each task should include:
 - **Name**: Human-readable name
 - **Summary**: One-line description
 - **Description**: Detailed explanation with actual commands from this codebase
-- **Tags**: For categorization (testing, build, deployment, etc.)
+- **Tags**: For categorization - use 2-4 simple, clear tags (e.g., cicd, k8s, go, java, build, testing, deployment)
 - **Prerequisites**: Tasks that MUST complete before this one
 - **Required downstream**: Tasks that MUST follow this one
 - **Suggested downstream**: Tasks that are recommended after this one
@@ -46,6 +46,8 @@ Each task should include:
 3. **Be specific** - include flags, arguments, paths from the project
 4. **Think about order** - what must happen before/after each task?
 5. **Cover common scenarios** - what do developers do daily? weekly? on release?
+6. **Keep tags simple** - prefer clear, single-word tags (cicd, k8s, go, java, build). Don't overuse tags; only add new ones when necessary for clarity and organization. Aim for 2-4 tags per task.
+7. **Include directory paths** - mention specific directories in task descriptions to help LLMs navigate directly to relevant code locations (e.g., "Tests are located in pkg/task_manager/" or "Configuration files in config/")
 
 ## Example Task Relationships
 
