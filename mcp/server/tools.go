@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"go.uber.org/zap"
 )
 
 // registerTools registers all MCP tools with the server
@@ -158,11 +159,14 @@ func (s *Server) registerTools() {
 
 // handleListTasks handles the list_tasks tool
 func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.logger.Debug("Handling list_tasks request")
+
 	var args struct {
 		Tags []string `json:"tags"`
 	}
 
 	if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+		s.logger.Error("Failed to parse list_tasks arguments", zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -173,6 +177,8 @@ func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) 
 		}, nil
 	}
 
+	s.logger.Info("Listing tasks", zap.Strings("tags", args.Tags))
+
 	var tasks []*types.Task
 
 	if len(args.Tags) > 0 {
@@ -180,6 +186,7 @@ func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) 
 		taskMap := make(map[string]*types.Task)
 		for _, tag := range args.Tags {
 			tagTasks, _ := s.taskManager.GetTasksByTag(tag)
+			s.logger.Debug("Retrieved tasks by tag", zap.String("tag", tag), zap.Int("count", len(tagTasks)))
 			for _, task := range tagTasks {
 				taskMap[task.ID] = task
 			}
@@ -190,10 +197,12 @@ func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) 
 		}
 	} else {
 		tasks = s.taskManager.ListAllTasks()
+		s.logger.Debug("Retrieved all tasks", zap.Int("count", len(tasks)))
 	}
 
 	data, err := json.Marshal(tasks)
 	if err != nil {
+		s.logger.Error("Failed to marshal tasks", zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -203,6 +212,8 @@ func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) 
 			},
 		}, nil
 	}
+
+	s.logger.Info("Successfully listed tasks", zap.Int("task_count", len(tasks)))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -215,11 +226,14 @@ func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) 
 
 // handleGetTask handles the get_task tool
 func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.logger.Debug("Handling get_task request")
+
 	var args struct {
 		ID string `json:"id"`
 	}
 
 	if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+		s.logger.Error("Failed to parse get_task arguments", zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -230,8 +244,11 @@ func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		}, nil
 	}
 
+	s.logger.Info("Getting task", zap.String("task_id", args.ID))
+
 	task, err := s.taskManager.GetTask(args.ID)
 	if err != nil {
+		s.logger.Error("Failed to get task", zap.String("task_id", args.ID), zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -244,6 +261,7 @@ func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*
 
 	data, err := json.Marshal(task)
 	if err != nil {
+		s.logger.Error("Failed to marshal task", zap.String("task_id", args.ID), zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -253,6 +271,8 @@ func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*
 			},
 		}, nil
 	}
+
+	s.logger.Info("Successfully retrieved task", zap.String("task_id", args.ID), zap.String("task_name", task.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -265,6 +285,8 @@ func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*
 
 // handleAddTask handles the add_task tool
 func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.logger.Debug("Handling add_task request")
+
 	var args struct {
 		ID                     string   `json:"id"`
 		Name                   string   `json:"name"`
@@ -277,6 +299,7 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 	}
 
 	if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+		s.logger.Error("Failed to parse add_task arguments", zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -286,6 +309,12 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 			},
 		}, nil
 	}
+
+	s.logger.Info("Adding new task",
+		zap.String("task_id", args.ID),
+		zap.String("task_name", args.Name),
+		zap.Strings("tags", args.Tags),
+	)
 
 	task := &types.Task{
 		ID:                     args.ID,
@@ -299,6 +328,11 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 	}
 
 	if err := s.taskManager.AddTask(task); err != nil {
+		s.logger.Error("Failed to add task",
+			zap.String("task_id", args.ID),
+			zap.String("task_name", args.Name),
+			zap.Error(err),
+		)
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -311,6 +345,7 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 
 	data, err := json.Marshal(task)
 	if err != nil {
+		s.logger.Error("Failed to marshal task", zap.String("task_id", args.ID), zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -320,6 +355,8 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 			},
 		}, nil
 	}
+
+	s.logger.Info("Successfully added task", zap.String("task_id", args.ID), zap.String("task_name", args.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -332,6 +369,8 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 
 // handleUpdateTask handles the update_task tool
 func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.logger.Debug("Handling update_task request")
+
 	var args struct {
 		ID                     string   `json:"id"`
 		Name                   string   `json:"name"`
@@ -344,6 +383,7 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 	}
 
 	if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+		s.logger.Error("Failed to parse update_task arguments", zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -353,6 +393,12 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 			},
 		}, nil
 	}
+
+	s.logger.Info("Updating task",
+		zap.String("task_id", args.ID),
+		zap.String("task_name", args.Name),
+		zap.Strings("tags", args.Tags),
+	)
 
 	task := &types.Task{
 		ID:                     args.ID,
@@ -366,6 +412,11 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 	}
 
 	if err := s.taskManager.UpdateTask(task); err != nil {
+		s.logger.Error("Failed to update task",
+			zap.String("task_id", args.ID),
+			zap.String("task_name", args.Name),
+			zap.Error(err),
+		)
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -378,6 +429,7 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 
 	data, err := json.Marshal(task)
 	if err != nil {
+		s.logger.Error("Failed to marshal task", zap.String("task_id", args.ID), zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -387,6 +439,8 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 			},
 		}, nil
 	}
+
+	s.logger.Info("Successfully updated task", zap.String("task_id", args.ID), zap.String("task_name", args.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -399,11 +453,14 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 
 // handleDeleteTask handles the delete_task tool
 func (s *Server) handleDeleteTask(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.logger.Debug("Handling delete_task request")
+
 	var args struct {
 		ID string `json:"id"`
 	}
 
 	if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+		s.logger.Error("Failed to parse delete_task arguments", zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -414,7 +471,10 @@ func (s *Server) handleDeleteTask(ctx context.Context, req *mcp.CallToolRequest)
 		}, nil
 	}
 
+	s.logger.Info("Deleting task", zap.String("task_id", args.ID))
+
 	if err := s.taskManager.DeleteTask(args.ID); err != nil {
+		s.logger.Error("Failed to delete task", zap.String("task_id", args.ID), zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
@@ -424,6 +484,8 @@ func (s *Server) handleDeleteTask(ctx context.Context, req *mcp.CallToolRequest)
 			},
 		}, nil
 	}
+
+	s.logger.Info("Successfully deleted task", zap.String("task_id", args.ID))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{

@@ -9,8 +9,10 @@ import (
 
 	"common-tasks-mcp/mcp/server"
 	"common-tasks-mcp/pkg/config"
+	"common-tasks-mcp/pkg/logger"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var (
@@ -67,9 +69,22 @@ Transport modes:
   stdio - Standard input/output (default, for MCP clients)
   http  - HTTP server (for REST API access)`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Create a basic logger first for config loading
+		// We'll recreate it with proper verbosity later
+		basicLog, err := logger.New(false)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+			os.Exit(1)
+		}
+		defer basicLog.Sync()
+
+		// Set logger for config package
+		config.SetLogger(basicLog)
+
 		// Load configuration
 		var cfg ServerConfig
 		if err := config.GetConfig(&cfg, configPath, true); err != nil {
+			basicLog.Error("Failed to load configuration", zap.Error(err))
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %v\n", err)
 			os.Exit(1)
 		}
@@ -90,11 +105,34 @@ Transport modes:
 
 		// Validate configuration after flag overrides
 		if err := cfg.Validate(); err != nil {
+			basicLog.Error("Configuration validation failed", zap.Error(err))
 			fmt.Fprintf(os.Stderr, "Configuration error: %v\n", err)
 			os.Exit(1)
 		}
 
-		// Print server info
+		// Initialize logger with proper verbosity
+		log, err := logger.New(cfg.Verbose)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+			os.Exit(1)
+		}
+		defer log.Sync()
+
+		// Update logger for config package
+		config.SetLogger(log)
+
+		log.Info("Starting Common Tasks MCP Server",
+			zap.String("version", "0.1.0"),
+			zap.String("transport", cfg.Transport),
+			zap.String("task_directory", cfg.Directory),
+			zap.Bool("verbose", cfg.Verbose),
+		)
+
+		if cfg.Transport == "http" {
+			log.Info("HTTP transport configured", zap.Int("port", cfg.HTTPPort))
+		}
+
+		// Print server info (keep for user visibility)
 		fmt.Println("Common Tasks MCP Server v0.1.0")
 		fmt.Printf("Transport mode: %s\n", cfg.Transport)
 		fmt.Printf("Task directory: %s\n", cfg.Directory)
@@ -107,11 +145,14 @@ Transport modes:
 		fmt.Println()
 
 		// Create server
-		srv, err := server.New(cfg)
+		srv, err := server.New(cfg, log)
 		if err != nil {
+			log.Error("Failed to create server", zap.Error(err))
 			fmt.Fprintf(os.Stderr, "Error creating server: %v\n", err)
 			os.Exit(1)
 		}
+
+		log.Info("Server created successfully")
 
 		// Setup context with signal handling
 		ctx, cancel := context.WithCancel(context.Background())
@@ -121,13 +162,17 @@ Transport modes:
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+		log.Debug("Signal handlers registered")
+
 		// Start server in goroutine
 		errChan := make(chan error, 1)
 		go func() {
 			var err error
 			if cfg.Transport == "http" {
+				log.Info("Starting HTTP server")
 				err = srv.RunHTTP(ctx)
 			} else {
+				log.Info("Starting stdio server")
 				err = srv.Run(ctx)
 			}
 			errChan <- err
@@ -135,15 +180,20 @@ Transport modes:
 
 		// Wait for shutdown signal or error
 		select {
-		case <-sigChan:
+		case sig := <-sigChan:
+			log.Info("Received shutdown signal", zap.String("signal", sig.String()))
 			fmt.Println("\nShutting down server...")
 			cancel()
 		case err := <-errChan:
 			if err != nil {
+				log.Error("Server exited with error", zap.Error(err))
 				fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 				os.Exit(1)
 			}
+			log.Info("Server exited normally")
 		}
+
+		log.Info("Shutdown complete")
 	},
 }
 

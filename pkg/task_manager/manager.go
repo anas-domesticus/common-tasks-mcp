@@ -7,6 +7,7 @@ import (
 
 	"common-tasks-mcp/pkg/task_manager/types"
 
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -14,28 +15,38 @@ import (
 type Manager struct {
 	tasks    map[string]*types.Task
 	tagCache map[string][]*types.Task
+	logger   *zap.Logger
 }
 
 // NewManager creates a new task manager instance
-func NewManager() *Manager {
+func NewManager(logger *zap.Logger) *Manager {
+	logger.Debug("Creating new task manager")
 	return &Manager{
 		tasks:    make(map[string]*types.Task),
 		tagCache: make(map[string][]*types.Task),
+		logger:   logger,
 	}
 }
 
 // AddTask adds a task to the manager.
 // It uses a clone-validate-commit pattern to ensure the addition doesn't introduce cycles.
 func (m *Manager) AddTask(task *types.Task) error {
+	m.logger.Debug("Adding task")
+
 	if task == nil {
+		m.logger.Error("Attempted to add nil task")
 		return fmt.Errorf("task cannot be nil")
 	}
 	if task.ID == "" {
+		m.logger.Error("Attempted to add task with empty ID")
 		return fmt.Errorf("task ID cannot be empty")
 	}
 	if _, exists := m.tasks[task.ID]; exists {
+		m.logger.Warn("Task already exists", zap.String("task_id", task.ID))
 		return fmt.Errorf("task with ID %s already exists", task.ID)
 	}
+
+	m.logger.Debug("Validating task addition for cycles", zap.String("task_id", task.ID))
 
 	// Clone the manager to test the addition
 	testManager := m.Clone()
@@ -45,14 +56,24 @@ func (m *Manager) AddTask(task *types.Task) error {
 
 	// Check for cycles in the test manager
 	if err := testManager.DetectCycles(); err != nil {
+		m.logger.Error("Task addition would introduce cycle",
+			zap.String("task_id", task.ID),
+			zap.Error(err),
+		)
 		return fmt.Errorf("addition would introduce cycle: %w", err)
 	}
 
 	// If no cycles detected, commit the addition to the original manager
 	m.tasks[task.ID] = task
+	m.logger.Debug("Task added to internal storage", zap.String("task_id", task.ID))
 
 	// Update tag cache with the new task
 	m.PopulateTagCache()
+	m.logger.Info("Task added successfully",
+		zap.String("task_id", task.ID),
+		zap.String("task_name", task.Name),
+		zap.Int("total_tasks", len(m.tasks)),
+	)
 
 	return nil
 }
@@ -61,15 +82,22 @@ func (m *Manager) AddTask(task *types.Task) error {
 // It uses a clone-validate-commit pattern to ensure the update doesn't introduce cycles,
 // and automatically refreshes all task pointers to prevent stale references.
 func (m *Manager) UpdateTask(task *types.Task) error {
+	m.logger.Debug("Updating task")
+
 	if task == nil {
+		m.logger.Error("Attempted to update with nil task")
 		return fmt.Errorf("task cannot be nil")
 	}
 	if task.ID == "" {
+		m.logger.Error("Attempted to update task with empty ID")
 		return fmt.Errorf("task ID cannot be empty")
 	}
 	if _, exists := m.tasks[task.ID]; !exists {
+		m.logger.Warn("Task not found for update", zap.String("task_id", task.ID))
 		return fmt.Errorf("task with ID %s not found", task.ID)
 	}
+
+	m.logger.Debug("Validating task update for cycles", zap.String("task_id", task.ID))
 
 	// Clone the manager to test the update
 	testManager := m.Clone()
@@ -79,20 +107,31 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 
 	// Check for cycles in the test manager
 	if err := testManager.DetectCycles(); err != nil {
+		m.logger.Error("Task update would introduce cycle",
+			zap.String("task_id", task.ID),
+			zap.Error(err),
+		)
 		return fmt.Errorf("update would introduce cycle: %w", err)
 	}
 
 	// If no cycles detected, commit the update to the original manager
 	m.tasks[task.ID] = task
+	m.logger.Debug("Task updated in internal storage", zap.String("task_id", task.ID))
 
 	// Resolve all task pointers to fix stale references
 	// This ensures that any tasks pointing to the updated task get fresh pointers
+	m.logger.Debug("Resolving task pointers after update")
 	if err := m.ResolveTaskPointers(); err != nil {
+		m.logger.Error("Failed to resolve task pointers", zap.Error(err))
 		return err
 	}
 
 	// Update tag cache since tags may have changed
 	m.PopulateTagCache()
+	m.logger.Info("Task updated successfully",
+		zap.String("task_id", task.ID),
+		zap.String("task_name", task.Name),
+	)
 
 	return nil
 }
@@ -100,14 +139,21 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 // DeleteTask removes a task from the manager and cleans up all references to it
 // from other tasks' prerequisite and downstream lists.
 func (m *Manager) DeleteTask(id string) error {
+	m.logger.Debug("Deleting task", zap.String("task_id", id))
+
 	if id == "" {
+		m.logger.Error("Attempted to delete task with empty ID")
 		return fmt.Errorf("task ID cannot be empty")
 	}
 	if _, exists := m.tasks[id]; !exists {
+		m.logger.Warn("Task not found for deletion", zap.String("task_id", id))
 		return fmt.Errorf("task with ID %s not found", id)
 	}
 
+	m.logger.Debug("Removing task references from other tasks", zap.String("task_id", id))
+
 	// Remove references to this task from all other tasks
+	referencesRemoved := 0
 	for _, task := range m.tasks {
 		if task.ID == id {
 			continue // Skip the task being deleted
@@ -132,14 +178,24 @@ func (m *Manager) DeleteTask(id string) error {
 		// Remove from DownstreamSuggested pointers if populated
 		if task.DownstreamSuggested != nil {
 			task.DownstreamSuggested = removeTaskFromSlice(task.DownstreamSuggested, id)
+			referencesRemoved++
 		}
 	}
+
+	m.logger.Debug("Removed references from other tasks",
+		zap.String("task_id", id),
+		zap.Int("references_cleaned", referencesRemoved),
+	)
 
 	// Delete the task itself
 	delete(m.tasks, id)
 
 	// Update tag cache since a task was removed
 	m.PopulateTagCache()
+	m.logger.Info("Task deleted successfully",
+		zap.String("task_id", id),
+		zap.Int("remaining_tasks", len(m.tasks)),
+	)
 
 	return nil
 }
@@ -282,8 +338,14 @@ func (m *Manager) Clone() *Manager {
 		return nil
 	}
 
-	// Create new manager
-	clone := NewManager()
+	m.logger.Debug("Cloning manager", zap.Int("task_count", len(m.tasks)))
+
+	// Create new manager with same logger
+	clone := &Manager{
+		tasks:    make(map[string]*types.Task),
+		tagCache: make(map[string][]*types.Task),
+		logger:   m.logger,
+	}
 
 	// Clone all tasks
 	for id, task := range m.tasks {
@@ -299,6 +361,8 @@ func (m *Manager) Clone() *Manager {
 
 	// Clone tag cache (we'll just rebuild it)
 	clone.PopulateTagCache()
+
+	m.logger.Debug("Manager cloned successfully")
 
 	return clone
 }
@@ -419,72 +483,129 @@ func (m *Manager) findCyclesDFS(taskID string, visited, recStack map[string]bool
 
 // LoadFromDir reads all YAML files from the specified directory and loads tasks
 func (m *Manager) LoadFromDir(dirPath string) error {
+	m.logger.Info("Loading tasks from directory", zap.String("path", dirPath))
+
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		m.logger.Error("Failed to create directory", zap.String("path", dirPath), zap.Error(err))
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Read all .yaml files in the directory
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
+		m.logger.Error("Failed to read directory", zap.String("path", dirPath), zap.Error(err))
 		return fmt.Errorf("failed to read directory: %w", err)
 	}
 
+	m.logger.Debug("Found directory entries", zap.Int("count", len(entries)))
+
+	tasksLoaded := 0
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+			m.logger.Debug("Skipping non-YAML file", zap.String("filename", entry.Name()))
 			continue
 		}
 
 		filename := filepath.Join(dirPath, entry.Name())
+		m.logger.Debug("Reading task file", zap.String("filename", filename))
+
 		data, err := os.ReadFile(filename)
 		if err != nil {
+			m.logger.Error("Failed to read file", zap.String("filename", entry.Name()), zap.Error(err))
 			return fmt.Errorf("failed to read file %s: %w", entry.Name(), err)
 		}
 
 		var task types.Task
 		if err := yaml.Unmarshal(data, &task); err != nil {
+			m.logger.Error("Failed to unmarshal task",
+				zap.String("filename", entry.Name()),
+				zap.Error(err),
+			)
 			return fmt.Errorf("failed to unmarshal task from %s: %w", entry.Name(), err)
 		}
 
 		m.tasks[task.ID] = &task
+		tasksLoaded++
+		m.logger.Debug("Loaded task from file",
+			zap.String("task_id", task.ID),
+			zap.String("task_name", task.Name),
+			zap.String("filename", entry.Name()),
+		)
 	}
+
+	m.logger.Info("Finished loading task files", zap.Int("tasks_loaded", tasksLoaded))
 
 	// Detect cycles before resolving pointers
+	m.logger.Debug("Detecting cycles in task graph")
 	if err := m.DetectCycles(); err != nil {
+		m.logger.Error("Cycle detected in task graph", zap.Error(err))
 		return fmt.Errorf("cycle detected in task graph: %w", err)
 	}
+	m.logger.Debug("No cycles detected")
 
 	// Resolve task pointers after loading all tasks and validating no cycles
+	m.logger.Debug("Resolving task pointers")
 	if err := m.ResolveTaskPointers(); err != nil {
+		m.logger.Error("Failed to resolve task pointers", zap.Error(err))
 		return err
 	}
+	m.logger.Debug("Task pointers resolved")
 
 	// Populate tag cache for efficient tag-based lookups
+	m.logger.Debug("Populating tag cache")
 	m.PopulateTagCache()
+
+	m.logger.Info("Successfully loaded tasks from directory",
+		zap.String("path", dirPath),
+		zap.Int("total_tasks", len(m.tasks)),
+	)
 
 	return nil
 }
 
 // PersistToDir writes all tasks to the specified directory as YAML files
 func (m *Manager) PersistToDir(dirPath string) error {
+	m.logger.Info("Persisting tasks to directory",
+		zap.String("path", dirPath),
+		zap.Int("task_count", len(m.tasks)),
+	)
+
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		m.logger.Error("Failed to create directory", zap.String("path", dirPath), zap.Error(err))
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
 	// Write each task as a separate YAML file
+	tasksPersisted := 0
 	for id, task := range m.tasks {
 		filename := filepath.Join(dirPath, fmt.Sprintf("%s.yaml", id))
 
+		m.logger.Debug("Marshaling task", zap.String("task_id", id))
 		data, err := yaml.Marshal(task)
 		if err != nil {
+			m.logger.Error("Failed to marshal task", zap.String("task_id", id), zap.Error(err))
 			return fmt.Errorf("failed to marshal task %s: %w", id, err)
 		}
 
+		m.logger.Debug("Writing task file", zap.String("filename", filename))
 		if err := os.WriteFile(filename, data, 0644); err != nil {
+			m.logger.Error("Failed to write task file",
+				zap.String("task_id", id),
+				zap.String("filename", filename),
+				zap.Error(err),
+			)
 			return fmt.Errorf("failed to write task %s: %w", id, err)
 		}
+
+		tasksPersisted++
 	}
+
+	m.logger.Info("Successfully persisted tasks to directory",
+		zap.String("path", dirPath),
+		zap.Int("tasks_persisted", tasksPersisted),
+	)
 
 	return nil
 }

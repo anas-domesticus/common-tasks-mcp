@@ -12,7 +12,7 @@ services:
       # Directory where tasks are stored
       MCP_DIRECTORY: /data
       # Enable verbose logging
-      MCP_VERBOSE: "false"
+      MCP_VERBOSE: "true"
     ports:
       - "8080:8080"
     volumes:

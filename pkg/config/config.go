@@ -8,8 +8,16 @@ import (
 	"strconv"
 	"strings"
 
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
+
+var log *zap.Logger
+
+// SetLogger sets the logger for the config package
+func SetLogger(logger *zap.Logger) {
+	log = logger
+}
 
 // Validator interface allows config structs to implement custom validation logic.
 // If a config struct implements this interface, validation will be automatically
@@ -199,32 +207,90 @@ func GetConfigFromEnvVars[T any](dest *T) error {
 //	var cfg MyConfig
 //	err := GetConfig(&cfg, "config.yaml", true)
 func GetConfig[T any](dest *T, filepath string, allowFileErrors bool) error {
+	if log != nil {
+		if filepath == "" {
+			log.Debug("Loading configuration from environment variables only")
+		} else {
+			log.Debug("Loading configuration", zap.String("file", filepath))
+		}
+	}
+
 	if filepath == "" {
 		return GetConfigFromEnvVars(dest)
 	}
+
 	data, err := os.ReadFile(filepath)
 	if err != nil {
+		if log != nil {
+			if allowFileErrors {
+				log.Debug("Config file not found, falling back to environment variables",
+					zap.String("file", filepath),
+					zap.Error(err),
+				)
+			} else {
+				log.Error("Failed to read config file",
+					zap.String("file", filepath),
+					zap.Error(err),
+				)
+			}
+		}
 		if allowFileErrors {
 			return GetConfigFromEnvVars(dest)
 		}
 		return fmt.Errorf("failed to read file: %w", err)
 	}
+
+	if log != nil {
+		log.Debug("Parsing YAML configuration", zap.String("file", filepath))
+	}
+
 	if err := yaml.Unmarshal(data, dest); err != nil {
+		if log != nil {
+			if allowFileErrors {
+				log.Warn("Failed to parse YAML, falling back to environment variables",
+					zap.String("file", filepath),
+					zap.Error(err),
+				)
+			} else {
+				log.Error("Failed to unmarshal YAML",
+					zap.String("file", filepath),
+					zap.Error(err),
+				)
+			}
+		}
 		if allowFileErrors {
 			return GetConfigFromEnvVars(dest)
 		}
 		return fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
+
+	if log != nil {
+		log.Debug("Overlaying environment variables on configuration")
+	}
+
 	err = GetConfigFromEnvVars(dest)
 	if err != nil {
+		if log != nil {
+			log.Error("Failed to process environment variables", zap.Error(err))
+		}
 		return err
 	}
 
 	// Run custom validation if the type implements Validator
 	if validator, ok := any(*dest).(Validator); ok {
+		if log != nil {
+			log.Debug("Running custom validation")
+		}
 		if err := validator.Validate(); err != nil {
+			if log != nil {
+				log.Error("Configuration validation failed", zap.Error(err))
+			}
 			return fmt.Errorf("validation failed: %w", err)
 		}
+	}
+
+	if log != nil {
+		log.Info("Configuration loaded successfully")
 	}
 
 	return nil
