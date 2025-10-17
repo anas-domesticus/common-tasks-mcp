@@ -40,7 +40,9 @@ func (m *Manager) AddTask(task *types.Task) error {
 	return nil
 }
 
-// UpdateTask updates an existing task in the manager
+// UpdateTask updates an existing task in the manager.
+// It uses a clone-validate-commit pattern to ensure the update doesn't introduce cycles,
+// and automatically refreshes all task pointers to prevent stale references.
 func (m *Manager) UpdateTask(task *types.Task) error {
 	if task == nil {
 		return fmt.Errorf("task cannot be nil")
@@ -52,8 +54,23 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 		return fmt.Errorf("task with ID %s not found", task.ID)
 	}
 
+	// Clone the manager to test the update
+	testManager := m.Clone()
+
+	// Perform the update in the test manager
+	testManager.tasks[task.ID] = task
+
+	// Check for cycles in the test manager
+	if err := testManager.DetectCycles(); err != nil {
+		return fmt.Errorf("update would introduce cycle: %w", err)
+	}
+
+	// If no cycles detected, commit the update to the original manager
 	m.tasks[task.ID] = task
-	return nil
+
+	// Resolve all task pointers to fix stale references
+	// This ensures that any tasks pointing to the updated task get fresh pointers
+	return m.ResolveTaskPointers()
 }
 
 // DeleteTask removes a task from the manager and cleans up all references to it

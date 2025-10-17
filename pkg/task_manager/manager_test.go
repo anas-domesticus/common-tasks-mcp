@@ -786,6 +786,68 @@ func TestUpdateTask(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "update that would introduce cycle is rejected - prerequisites",
+			setupTasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-b"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-b",
+					Name:                  "Task B",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:                    "task-a",
+				Name:                  "Task A - Updated",
+				PrerequisiteIDs:       []string{"task-b"}, // This would create a cycle: A -> B -> A
+				DownstreamRequiredIDs: []string{"task-b"},
+				CreatedAt:             now,
+				UpdatedAt:             now.Add(time.Hour),
+			},
+			wantError:     true,
+			expectedError: "update would introduce cycle",
+		},
+		{
+			name: "update that would introduce cycle is rejected - downstream required",
+			setupTasks: []*types.Task{
+				{
+					ID:                    "task-x",
+					Name:                  "Task X",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-y"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-y",
+					Name:                  "Task Y",
+					PrerequisiteIDs:       []string{"task-x"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			updateTask: &types.Task{
+				ID:                    "task-y",
+				Name:                  "Task Y - Updated",
+				PrerequisiteIDs:       []string{"task-x"},
+				DownstreamRequiredIDs: []string{"task-x"}, // This would create a cycle: X -> Y -> X
+				CreatedAt:             now,
+				UpdatedAt:             now.Add(time.Hour),
+			},
+			wantError:     true,
+			expectedError: "update would introduce cycle",
+		},
 	}
 
 	for _, tt := range tests {
@@ -812,9 +874,9 @@ func TestUpdateTask(t *testing.T) {
 			// Check error expectations
 			if tt.wantError {
 				if err == nil {
-					t.Errorf("Expected error %q, got nil", tt.expectedError)
-				} else if tt.expectedError != "" && err.Error() != tt.expectedError {
-					t.Errorf("Expected error %q, got %q", tt.expectedError, err.Error())
+					t.Errorf("Expected error containing %q, got nil", tt.expectedError)
+				} else if tt.expectedError != "" && !contains(err.Error(), tt.expectedError) {
+					t.Errorf("Expected error containing %q, got %q", tt.expectedError, err.Error())
 				}
 				return // Don't run validations if we expected an error
 			}
