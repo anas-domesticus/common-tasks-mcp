@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"common-tasks-mcp/pkg/types"
+	"common-tasks-mcp/pkg/task_manager/types"
 )
 
 func TestPopulateTagCache(t *testing.T) {

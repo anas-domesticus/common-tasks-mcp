@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"common-tasks-mcp/pkg/types"
+	"common-tasks-mcp/pkg/task_manager/types"
 )
 
 func TestPersistAndLoad(t *testing.T) {
@@ -20,41 +20,41 @@ func TestPersistAndLoad(t *testing.T) {
 
 	// Task A - no dependencies
 	taskA := &types.Task{
-		ID:            "task-a",
-		Name:          "Task A",
-		Summary:       "First task",
-		Description:   "This is the first task with no dependencies",
-		Tags:          []string{"api", "backend"},
-		DependencyIDs: []string{},
-		DependentIDs:  []string{"task-b"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                    "task-a",
+		Name:                  "Task A",
+		Summary:               "First task",
+		Description:           "This is the first task with no dependencies",
+		Tags:                  []string{"api", "backend"},
+		PrerequisiteIDs:       []string{},
+		DownstreamRequiredIDs: []string{"task-b"},
+		CreatedAt:             now,
+		UpdatedAt:             now,
 	}
 
 	// Task B - depends on A, has C as dependent
 	taskB := &types.Task{
-		ID:            "task-b",
-		Name:          "Task B",
-		Summary:       "Second task",
-		Description:   "This task depends on A and has C as dependent",
-		Tags:          []string{"frontend", "api"},
-		DependencyIDs: []string{"task-a"},
-		DependentIDs:  []string{"task-c"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                    "task-b",
+		Name:                  "Task B",
+		Summary:               "Second task",
+		Description:           "This task depends on A and has C as dependent",
+		Tags:                  []string{"frontend", "api"},
+		PrerequisiteIDs:       []string{"task-a"},
+		DownstreamRequiredIDs: []string{"task-c"},
+		CreatedAt:             now,
+		UpdatedAt:             now,
 	}
 
 	// Task C - depends on B
 	taskC := &types.Task{
-		ID:            "task-c",
-		Name:          "Task C",
-		Summary:       "Third task",
-		Description:   "This task depends on B",
-		Tags:          []string{"testing"},
-		DependencyIDs: []string{"task-b"},
-		DependentIDs:  []string{},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                    "task-c",
+		Name:                  "Task C",
+		Summary:               "Third task",
+		Description:           "This task depends on B",
+		Tags:                  []string{"testing"},
+		PrerequisiteIDs:       []string{"task-b"},
+		DownstreamRequiredIDs: []string{},
+		CreatedAt:             now,
+		UpdatedAt:             now,
 	}
 
 	manager1.tasks["task-a"] = taskA
@@ -703,4 +703,407 @@ func TestListAllTasks(t *testing.T) {
 			t.Error("Deleted task-2 still appears in ListAllTasks result")
 		}
 	}
+}
+
+func TestDetectCycles(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+
+	tests := []struct {
+		name      string
+		tasks     []*types.Task
+		wantError bool
+		errorMsg  string
+	}{
+		{
+			name: "no cycles - valid DAG",
+			tasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-b"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-b",
+					Name:                  "Task B",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{"task-c"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-c",
+					Name:                  "Task C",
+					PrerequisiteIDs:       []string{"task-b"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			wantError: false,
+		},
+		{
+			name: "self-cycle in prerequisites",
+			tasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected in prerequisites DAG",
+		},
+		{
+			name: "self-cycle in downstream required",
+			tasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-a"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected in downstream required DAG",
+		},
+		{
+			name: "self-cycle in downstream suggested",
+			tasks: []*types.Task{
+				{
+					ID:                     "task-a",
+					Name:                   "Task A",
+					PrerequisiteIDs:        []string{},
+					DownstreamRequiredIDs:  []string{},
+					DownstreamSuggestedIDs: []string{"task-a"},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected in downstream suggested DAG",
+		},
+		{
+			name: "two-task cycle in prerequisites",
+			tasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{"task-b"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-b",
+					Name:                  "Task B",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected in prerequisites DAG",
+		},
+		{
+			name: "two-task cycle in downstream required",
+			tasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-b"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-b",
+					Name:                  "Task B",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-a"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected in downstream required DAG",
+		},
+		{
+			name: "three-task cycle in prerequisites",
+			tasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{"task-c"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-b",
+					Name:                  "Task B",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-c",
+					Name:                  "Task C",
+					PrerequisiteIDs:       []string{"task-b"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected in prerequisites DAG",
+		},
+		{
+			name: "longer cycle - 4 tasks in prerequisites",
+			tasks: []*types.Task{
+				{
+					ID:              "task-a",
+					Name:            "Task A",
+					PrerequisiteIDs: []string{"task-d"},
+					CreatedAt:       now,
+					UpdatedAt:       now,
+				},
+				{
+					ID:              "task-b",
+					Name:            "Task B",
+					PrerequisiteIDs: []string{"task-a"},
+					CreatedAt:       now,
+					UpdatedAt:       now,
+				},
+				{
+					ID:              "task-c",
+					Name:            "Task C",
+					PrerequisiteIDs: []string{"task-b"},
+					CreatedAt:       now,
+					UpdatedAt:       now,
+				},
+				{
+					ID:              "task-d",
+					Name:            "Task D",
+					PrerequisiteIDs: []string{"task-c"},
+					CreatedAt:       now,
+					UpdatedAt:       now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected in prerequisites DAG",
+		},
+		{
+			name: "diamond pattern - not a cycle, valid",
+			tasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-b", "task-c"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-b",
+					Name:                  "Task B",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{"task-d"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-c",
+					Name:                  "Task C",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{"task-d"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-d",
+					Name:                  "Task D",
+					PrerequisiteIDs:       []string{"task-b", "task-c"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			wantError: false,
+		},
+		{
+			name: "cycles in multiple DAGs",
+			tasks: []*types.Task{
+				{
+					ID:                     "task-a",
+					Name:                   "Task A",
+					PrerequisiteIDs:        []string{"task-b"},
+					DownstreamRequiredIDs:  []string{},
+					DownstreamSuggestedIDs: []string{"task-c"},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+				{
+					ID:                     "task-b",
+					Name:                   "Task B",
+					PrerequisiteIDs:        []string{"task-a"},
+					DownstreamRequiredIDs:  []string{},
+					DownstreamSuggestedIDs: []string{},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+				{
+					ID:                     "task-c",
+					Name:                   "Task C",
+					PrerequisiteIDs:        []string{},
+					DownstreamRequiredIDs:  []string{},
+					DownstreamSuggestedIDs: []string{"task-a"},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected",
+		},
+		{
+			name: "complex valid graph with multiple paths",
+			tasks: []*types.Task{
+				{
+					ID:                    "task-a",
+					Name:                  "Task A",
+					PrerequisiteIDs:       []string{},
+					DownstreamRequiredIDs: []string{"task-b", "task-c"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-b",
+					Name:                  "Task B",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{"task-d"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-c",
+					Name:                  "Task C",
+					PrerequisiteIDs:       []string{"task-a"},
+					DownstreamRequiredIDs: []string{"task-e"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-d",
+					Name:                  "Task D",
+					PrerequisiteIDs:       []string{"task-b"},
+					DownstreamRequiredIDs: []string{"task-f"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-e",
+					Name:                  "Task E",
+					PrerequisiteIDs:       []string{"task-c"},
+					DownstreamRequiredIDs: []string{"task-f"},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+				{
+					ID:                    "task-f",
+					Name:                  "Task F",
+					PrerequisiteIDs:       []string{"task-d", "task-e"},
+					DownstreamRequiredIDs: []string{},
+					CreatedAt:             now,
+					UpdatedAt:             now,
+				},
+			},
+			wantError: false,
+		},
+		{
+			name: "suggested downstream cycle only",
+			tasks: []*types.Task{
+				{
+					ID:                     "task-a",
+					Name:                   "Task A",
+					PrerequisiteIDs:        []string{},
+					DownstreamRequiredIDs:  []string{},
+					DownstreamSuggestedIDs: []string{"task-b"},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+				{
+					ID:                     "task-b",
+					Name:                   "Task B",
+					PrerequisiteIDs:        []string{},
+					DownstreamRequiredIDs:  []string{},
+					DownstreamSuggestedIDs: []string{"task-c"},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+				{
+					ID:                     "task-c",
+					Name:                   "Task C",
+					PrerequisiteIDs:        []string{},
+					DownstreamRequiredIDs:  []string{},
+					DownstreamSuggestedIDs: []string{"task-a"},
+					CreatedAt:              now,
+					UpdatedAt:              now,
+				},
+			},
+			wantError: true,
+			errorMsg:  "cycle detected in downstream suggested DAG",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := NewManager()
+
+			// Add all tasks to the manager
+			for _, task := range tt.tasks {
+				if err := manager.AddTask(task); err != nil {
+					t.Fatalf("Failed to add task %s: %v", task.ID, err)
+				}
+			}
+
+			// Check for cycles
+			err := manager.DetectCycles()
+
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("Expected error containing %q, but got no error", tt.errorMsg)
+				} else if tt.errorMsg != "" && !contains(err.Error(), tt.errorMsg) {
+					t.Errorf("Expected error containing %q, got %q", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error, but got: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// contains checks if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && containsHelper(s, substr)))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

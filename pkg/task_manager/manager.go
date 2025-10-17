@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"common-tasks-mcp/pkg/types"
+	"common-tasks-mcp/pkg/task_manager/types"
 
 	"gopkg.in/yaml.v3"
 )
@@ -122,22 +122,124 @@ func (m *Manager) getTasks(ids []string) ([]*types.Task, error) {
 	return tasks, nil
 }
 
-// GetDependencies retrieves all dependency tasks for the given task
-func (m *Manager) GetDependencies(task *types.Task) ([]*types.Task, error) {
+// GetPrerequisites retrieves all prerequisite tasks for the given task
+func (m *Manager) GetPrerequisites(task *types.Task) ([]*types.Task, error) {
 	if task == nil {
 		return nil, fmt.Errorf("task cannot be nil")
 	}
 
-	return m.getTasks(task.DependencyIDs)
+	return m.getTasks(task.PrerequisiteIDs)
 }
 
-// GetDependents retrieves all dependent tasks for the given task
-func (m *Manager) GetDependents(task *types.Task) ([]*types.Task, error) {
+// GetDownstreamRequired retrieves all required downstream tasks for the given task
+func (m *Manager) GetDownstreamRequired(task *types.Task) ([]*types.Task, error) {
 	if task == nil {
 		return nil, fmt.Errorf("task cannot be nil")
 	}
 
-	return m.getTasks(task.DependentIDs)
+	return m.getTasks(task.DownstreamRequiredIDs)
+}
+
+// GetDownstreamSuggested retrieves all suggested downstream tasks for the given task
+func (m *Manager) GetDownstreamSuggested(task *types.Task) ([]*types.Task, error) {
+	if task == nil {
+		return nil, fmt.Errorf("task cannot be nil")
+	}
+
+	return m.getTasks(task.DownstreamSuggestedIDs)
+}
+
+// DetectCycles checks all three DAGs (Prerequisites, Downstream Required, and Downstream Suggested)
+// for cycles. Returns an error if any cycles are detected.
+func (m *Manager) DetectCycles() error {
+	var errors []error
+
+	// Check Prerequisites DAG for cycles
+	if err := m.detectCyclesInDAG("prerequisites", func(task *types.Task) []string {
+		return task.PrerequisiteIDs
+	}); err != nil {
+		errors = append(errors, fmt.Errorf("cycle detected in prerequisites DAG: %w", err))
+	}
+
+	// Check Downstream Required DAG for cycles
+	if err := m.detectCyclesInDAG("downstream required", func(task *types.Task) []string {
+		return task.DownstreamRequiredIDs
+	}); err != nil {
+		errors = append(errors, fmt.Errorf("cycle detected in downstream required DAG: %w", err))
+	}
+
+	// Check Downstream Suggested DAG for cycles
+	if err := m.detectCyclesInDAG("downstream suggested", func(task *types.Task) []string {
+		return task.DownstreamSuggestedIDs
+	}); err != nil {
+		errors = append(errors, fmt.Errorf("cycle detected in downstream suggested DAG: %w", err))
+	}
+
+	if len(errors) > 0 {
+		// Combine all errors into one
+		msg := ""
+		for i, err := range errors {
+			if i > 0 {
+				msg += "; "
+			}
+			msg += err.Error()
+		}
+		return fmt.Errorf("%s", msg)
+	}
+
+	return nil
+}
+
+// detectCyclesInDAG performs cycle detection on a specific DAG using DFS
+func (m *Manager) detectCyclesInDAG(dagName string, getEdges func(*types.Task) []string) error {
+	visited := make(map[string]bool)
+	recStack := make(map[string]bool)
+
+	// Check each task as a potential starting point
+	for taskID := range m.tasks {
+		if !visited[taskID] {
+			if m.hasCycleDFS(taskID, visited, recStack, getEdges) {
+				return fmt.Errorf("cycle found starting from task %s", taskID)
+			}
+		}
+	}
+
+	return nil
+}
+
+// hasCycleDFS performs depth-first search to detect cycles
+func (m *Manager) hasCycleDFS(taskID string, visited, recStack map[string]bool, getEdges func(*types.Task) []string) bool {
+	// Mark current node as visited and add to recursion stack
+	visited[taskID] = true
+	recStack[taskID] = true
+
+	// Get the task
+	task, exists := m.tasks[taskID]
+	if !exists {
+		// If task doesn't exist, we can't traverse it, so no cycle from this path
+		recStack[taskID] = false
+		return false
+	}
+
+	// Get edges for this task based on the DAG we're checking
+	edges := getEdges(task)
+
+	// Recursively check all adjacent nodes
+	for _, adjacentID := range edges {
+		// If adjacent node is not visited, recurse on it
+		if !visited[adjacentID] {
+			if m.hasCycleDFS(adjacentID, visited, recStack, getEdges) {
+				return true
+			}
+		} else if recStack[adjacentID] {
+			// If adjacent node is in recursion stack, we found a cycle
+			return true
+		}
+	}
+
+	// Remove from recursion stack before returning
+	recStack[taskID] = false
+	return false
 }
 
 // Load reads all YAML files from the specified directory and loads tasks

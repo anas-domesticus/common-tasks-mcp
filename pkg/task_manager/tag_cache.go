@@ -3,7 +3,7 @@ package task_manager
 import (
 	"fmt"
 
-	"common-tasks-mcp/pkg/types"
+	"common-tasks-mcp/pkg/task_manager/types"
 )
 
 // PopulateTagCache builds the tag cache by iterating through all tasks
