@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Task represents a node in the task graph with three distinct DAG relationships
 type Task struct {
@@ -141,4 +144,52 @@ func (t *Task) GetDownstreamSuggested() []*Task {
 		return nil
 	}
 	return t.DownstreamSuggested
+}
+
+// checkEdgeConsistency validates that a task slice and string slice conform.
+// The IDs in the string slice should match the IDs in the task slice (same set, any order).
+// Returns nil if consistent, or a descriptive error if inconsistent.
+func checkEdgeConsistency(tasks []*Task, ids []string) error {
+	// Handle nil/empty cases
+	if len(tasks) == 0 && len(ids) == 0 {
+		return nil
+	}
+
+	// Check length mismatch
+	if len(tasks) != len(ids) {
+		return fmt.Errorf("length mismatch: %d tasks but %d IDs", len(tasks), len(ids))
+	}
+
+	// Build a map of IDs from the string slice
+	idMap := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if idMap[id] {
+			return fmt.Errorf("duplicate ID in string slice: %s", id)
+		}
+		idMap[id] = true
+	}
+
+	// Verify each task's ID is in the string slice
+	taskIDMap := make(map[string]bool, len(tasks))
+	for i, task := range tasks {
+		if task == nil {
+			return fmt.Errorf("nil task at index %d", i)
+		}
+		if !idMap[task.ID] {
+			return fmt.Errorf("task ID %s not found in string slice", task.ID)
+		}
+		if taskIDMap[task.ID] {
+			return fmt.Errorf("duplicate task ID in task slice: %s", task.ID)
+		}
+		taskIDMap[task.ID] = true
+	}
+
+	// Verify each string ID has a corresponding task (should be covered by length check + above, but explicit)
+	for _, id := range ids {
+		if !taskIDMap[id] {
+			return fmt.Errorf("ID %s not found in task slice", id)
+		}
+	}
+
+	return nil
 }

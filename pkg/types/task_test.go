@@ -562,3 +562,163 @@ func TestTaskEquals(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckEdgeConsistency(t *testing.T) {
+	tests := []struct {
+		name      string
+		tasks     []*Task
+		ids       []string
+		wantError bool
+		errorMsg  string
+	}{
+		{
+			name:      "both empty slices",
+			tasks:     []*Task{},
+			ids:       []string{},
+			wantError: false,
+		},
+		{
+			name:      "both nil slices",
+			tasks:     nil,
+			ids:       nil,
+			wantError: false,
+		},
+		{
+			name: "single task and ID match",
+			tasks: []*Task{
+				{ID: "task-1"},
+			},
+			ids:       []string{"task-1"},
+			wantError: false,
+		},
+		{
+			name: "multiple tasks and IDs match (same order)",
+			tasks: []*Task{
+				{ID: "task-1"},
+				{ID: "task-2"},
+				{ID: "task-3"},
+			},
+			ids:       []string{"task-1", "task-2", "task-3"},
+			wantError: false,
+		},
+		{
+			name: "multiple tasks and IDs match (different order)",
+			tasks: []*Task{
+				{ID: "task-3"},
+				{ID: "task-1"},
+				{ID: "task-2"},
+			},
+			ids:       []string{"task-1", "task-2", "task-3"},
+			wantError: false,
+		},
+		{
+			name: "length mismatch - more tasks",
+			tasks: []*Task{
+				{ID: "task-1"},
+				{ID: "task-2"},
+			},
+			ids:       []string{"task-1"},
+			wantError: true,
+			errorMsg:  "length mismatch: 2 tasks but 1 IDs",
+		},
+		{
+			name: "length mismatch - more IDs",
+			tasks: []*Task{
+				{ID: "task-1"},
+			},
+			ids:       []string{"task-1", "task-2"},
+			wantError: true,
+			errorMsg:  "length mismatch: 1 tasks but 2 IDs",
+		},
+		{
+			name: "duplicate ID in string slice",
+			tasks: []*Task{
+				{ID: "task-1"},
+				{ID: "task-2"},
+			},
+			ids:       []string{"task-1", "task-1"},
+			wantError: true,
+			errorMsg:  "duplicate ID in string slice: task-1",
+		},
+		{
+			name: "duplicate task ID in task slice",
+			tasks: []*Task{
+				{ID: "task-1"},
+				{ID: "task-1"},
+			},
+			ids:       []string{"task-1", "task-2"},
+			wantError: true,
+			errorMsg:  "duplicate task ID in task slice: task-1",
+		},
+		{
+			name: "task ID not found in string slice",
+			tasks: []*Task{
+				{ID: "task-1"},
+				{ID: "task-2"},
+			},
+			ids:       []string{"task-1", "task-3"},
+			wantError: true,
+			errorMsg:  "task ID task-2 not found in string slice",
+		},
+		{
+			name: "mismatched IDs - different sets",
+			tasks: []*Task{
+				{ID: "task-1"},
+				{ID: "task-3"},
+			},
+			ids:       []string{"task-1", "task-2"},
+			wantError: true,
+			errorMsg:  "task ID task-3 not found in string slice",
+		},
+		{
+			name: "nil task in slice",
+			tasks: []*Task{
+				{ID: "task-1"},
+				nil,
+			},
+			ids:       []string{"task-1", "task-2"},
+			wantError: true,
+			errorMsg:  "nil task at index 1",
+		},
+		{
+			name: "nil task at first position",
+			tasks: []*Task{
+				nil,
+				{ID: "task-2"},
+			},
+			ids:       []string{"task-1", "task-2"},
+			wantError: true,
+			errorMsg:  "nil task at index 0",
+		},
+		{
+			name: "complex valid case with many tasks",
+			tasks: []*Task{
+				{ID: "alpha"},
+				{ID: "beta"},
+				{ID: "gamma"},
+				{ID: "delta"},
+				{ID: "epsilon"},
+			},
+			ids:       []string{"epsilon", "gamma", "alpha", "delta", "beta"},
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkEdgeConsistency(tt.tasks, tt.ids)
+
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("checkEdgeConsistency() expected error but got nil")
+				} else if tt.errorMsg != "" && err.Error() != tt.errorMsg {
+					t.Errorf("checkEdgeConsistency() error = %q, want %q", err.Error(), tt.errorMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("checkEdgeConsistency() unexpected error = %v", err)
+				}
+			}
+		})
+	}
+}
