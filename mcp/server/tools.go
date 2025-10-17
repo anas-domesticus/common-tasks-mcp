@@ -200,25 +200,12 @@ func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) 
 		s.logger.Debug("Retrieved all tasks", zap.Int("count", len(tasks)))
 	}
 
-	data, err := json.Marshal(tasks)
-	if err != nil {
-		s.logger.Error("Failed to marshal tasks", zap.Error(err))
-		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to marshal tasks: %v", err),
-				},
-			},
-		}, nil
-	}
-
 	s.logger.Info("Successfully listed tasks", zap.Int("task_count", len(tasks)))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: string(data),
+				Text: formatTasksAsMarkdown(tasks),
 			},
 		},
 	}, nil
@@ -259,25 +246,12 @@ func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		}, nil
 	}
 
-	data, err := json.Marshal(task)
-	if err != nil {
-		s.logger.Error("Failed to marshal task", zap.String("task_id", args.ID), zap.Error(err))
-		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to marshal task: %v", err),
-				},
-			},
-		}, nil
-	}
-
 	s.logger.Info("Successfully retrieved task", zap.String("task_id", args.ID), zap.String("task_name", task.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: string(data),
+				Text: formatTaskAsMarkdown(task, s.taskManager),
 			},
 		},
 	}, nil
@@ -359,25 +333,12 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		}, nil
 	}
 
-	data, err := json.Marshal(task)
-	if err != nil {
-		s.logger.Error("Failed to marshal task", zap.String("task_id", args.ID), zap.Error(err))
-		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to marshal task: %v", err),
-				},
-			},
-		}, nil
-	}
-
 	s.logger.Info("Successfully added task", zap.String("task_id", args.ID), zap.String("task_name", args.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: string(data),
+				Text: fmt.Sprintf("✓ Task `%s` created successfully\n\n%s", task.ID, formatTaskAsMarkdown(task, s.taskManager)),
 			},
 		},
 	}, nil
@@ -459,25 +420,12 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 		}, nil
 	}
 
-	data, err := json.Marshal(task)
-	if err != nil {
-		s.logger.Error("Failed to marshal task", zap.String("task_id", args.ID), zap.Error(err))
-		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to marshal task: %v", err),
-				},
-			},
-		}, nil
-	}
-
 	s.logger.Info("Successfully updated task", zap.String("task_id", args.ID), zap.String("task_name", args.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: string(data),
+				Text: fmt.Sprintf("✓ Task `%s` updated successfully\n\n%s", task.ID, formatTaskAsMarkdown(task, s.taskManager)),
 			},
 		},
 	}, nil
