@@ -88,6 +88,17 @@ The server provides the following MCP tools:
 - **update_task**: Update an existing task
 - **delete_task**: Delete a task and clean up all references
 
+### MCP Prompts
+
+The server provides the following MCP prompts:
+
+- **generate-initial-tasks**: Prompt for generating an initial set of tasks for a codebase. Guides exploration of project structure, build systems, CI/CD configs, and documentation to create tasks with proper relationships and workflows.
+
+You can also access this prompt via the CLI:
+```bash
+mcp prompt
+```
+
 ### Task Structure
 
 Tasks are stored as YAML files with the following structure:

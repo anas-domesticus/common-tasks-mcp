@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 )
+
+//go:embed prompts/generate-initial-tasks.md
+var generateInitialTasksPrompt string
 
 // Server wraps the MCP server
 type Server struct {
@@ -62,6 +66,11 @@ func New(cfg Config, logger *zap.Logger) (*Server, error) {
 	logger.Debug("Registering MCP tools")
 	srv.registerTools()
 	logger.Info("MCP tools registered successfully")
+
+	// Register all MCP prompts
+	logger.Debug("Registering MCP prompts")
+	srv.registerPrompts()
+	logger.Info("MCP prompts registered successfully")
 
 	return srv, nil
 }
@@ -124,4 +133,41 @@ func (s *Server) Run(ctx context.Context) error {
 		s.logger.Info("Stdio server exited normally")
 	}
 	return err
+}
+
+// GetGenerateInitialTasksPrompt returns the embedded prompt for generating initial tasks
+func GetGenerateInitialTasksPrompt() string {
+	return generateInitialTasksPrompt
+}
+
+// registerPrompts registers all MCP prompts with the server
+func (s *Server) registerPrompts() {
+	// Generate initial tasks prompt
+	generateTasksPrompt := &mcp.Prompt{
+		Name:        "generate-initial-tasks",
+		Description: "Prompt for generating an initial set of tasks for a codebase. Guides exploration of project structure, build systems, CI/CD configs, and documentation to create tasks with proper relationships and workflows.",
+	}
+
+	s.mcp.AddPrompt(generateTasksPrompt, s.handleGenerateTasksPrompt)
+}
+
+// handleGenerateTasksPrompt handles the generate-initial-tasks prompt
+func (s *Server) handleGenerateTasksPrompt(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	s.logger.Debug("Handling generate-initial-tasks prompt request")
+
+	prompt := generateInitialTasksPrompt
+
+	s.logger.Info("Successfully retrieved generate-initial-tasks prompt", zap.Int("length", len(prompt)))
+
+	return &mcp.GetPromptResult{
+		Description: "Prompt for generating an initial set of tasks for a codebase",
+		Messages: []*mcp.PromptMessage{
+			{
+				Role: "user",
+				Content: &mcp.TextContent{
+					Text: prompt,
+				},
+			},
+		},
+	}, nil
 }

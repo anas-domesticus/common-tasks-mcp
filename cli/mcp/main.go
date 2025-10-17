@@ -57,6 +57,22 @@ var versionCmd = &cobra.Command{
 	},
 }
 
+var promptCmd = &cobra.Command{
+	Use:   "prompt",
+	Short: "Output the prompt for generating initial tasks",
+	Long: `Output the prompt that can be used with Claude Code or other AI assistants
+to generate an initial set of tasks for a codebase.
+
+This prompt guides the AI to:
+- Explore the codebase structure
+- Find build systems, CI/CD configs, and documentation
+- Create tasks with proper relationships and workflows
+- Use actual commands and paths from the project`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(server.GetGenerateInitialTasksPrompt())
+	},
+}
+
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start the MCP server",
@@ -210,4 +226,5 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(promptCmd)
 }
