@@ -14,20 +14,24 @@ func TestTaskYAMLMarshalling(t *testing.T) {
 
 	// Create a task with both ID fields and pointer fields populated
 	task := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1", "suggested-2"},
 		// Populate pointer fields - these should NOT be marshalled
-		Dependencies: []*Task{
+		Prerequisites: []*Task{
 			{ID: "should-not-appear-1"},
 			{ID: "should-not-appear-2"},
 		},
-		Dependents: []*Task{
+		DownstreamRequired: []*Task{
 			{ID: "should-not-appear-3"},
+		},
+		DownstreamSuggested: []*Task{
+			{ID: "should-not-appear-4"},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -41,21 +45,30 @@ func TestTaskYAMLMarshalling(t *testing.T) {
 
 	yamlStr := string(data)
 
-	// Verify that DependencyIDs and DependentIDs are present
-	if !strings.Contains(yamlStr, "dependencies:") {
-		t.Error("Expected 'dependencies:' field in YAML output")
+	// Verify that PrerequisiteIDs, DownstreamRequiredIDs, and DownstreamSuggestedIDs are present
+	if !strings.Contains(yamlStr, "prerequisites:") {
+		t.Error("Expected 'prerequisites:' field in YAML output")
 	}
-	if !strings.Contains(yamlStr, "dep-1") {
-		t.Error("Expected 'dep-1' in YAML output")
+	if !strings.Contains(yamlStr, "prereq-1") {
+		t.Error("Expected 'prereq-1' in YAML output")
 	}
-	if !strings.Contains(yamlStr, "dep-2") {
-		t.Error("Expected 'dep-2' in YAML output")
+	if !strings.Contains(yamlStr, "prereq-2") {
+		t.Error("Expected 'prereq-2' in YAML output")
 	}
-	if !strings.Contains(yamlStr, "dependents:") {
-		t.Error("Expected 'dependents:' field in YAML output")
+	if !strings.Contains(yamlStr, "downstream_required:") {
+		t.Error("Expected 'downstream_required:' field in YAML output")
 	}
-	if !strings.Contains(yamlStr, "dependent-1") {
-		t.Error("Expected 'dependent-1' in YAML output")
+	if !strings.Contains(yamlStr, "required-1") {
+		t.Error("Expected 'required-1' in YAML output")
+	}
+	if !strings.Contains(yamlStr, "downstream_suggested:") {
+		t.Error("Expected 'downstream_suggested:' field in YAML output")
+	}
+	if !strings.Contains(yamlStr, "suggested-1") {
+		t.Error("Expected 'suggested-1' in YAML output")
+	}
+	if !strings.Contains(yamlStr, "suggested-2") {
+		t.Error("Expected 'suggested-2' in YAML output")
 	}
 
 	// Verify that pointer field values are NOT present
@@ -70,19 +83,25 @@ func TestTaskYAMLMarshalling(t *testing.T) {
 	}
 
 	// Verify ID fields were preserved
-	if len(unmarshalled.DependencyIDs) != 2 {
-		t.Errorf("Expected 2 dependency IDs, got %d", len(unmarshalled.DependencyIDs))
+	if len(unmarshalled.PrerequisiteIDs) != 2 {
+		t.Errorf("Expected 2 prerequisite IDs, got %d", len(unmarshalled.PrerequisiteIDs))
 	}
-	if len(unmarshalled.DependentIDs) != 1 {
-		t.Errorf("Expected 1 dependent ID, got %d", len(unmarshalled.DependentIDs))
+	if len(unmarshalled.DownstreamRequiredIDs) != 1 {
+		t.Errorf("Expected 1 downstream required ID, got %d", len(unmarshalled.DownstreamRequiredIDs))
+	}
+	if len(unmarshalled.DownstreamSuggestedIDs) != 2 {
+		t.Errorf("Expected 2 downstream suggested IDs, got %d", len(unmarshalled.DownstreamSuggestedIDs))
 	}
 
 	// Verify pointer fields are nil/empty after unmarshalling
-	if unmarshalled.Dependencies != nil {
-		t.Errorf("Dependencies pointer field should be nil after unmarshal, got %v", unmarshalled.Dependencies)
+	if unmarshalled.Prerequisites != nil {
+		t.Errorf("Prerequisites pointer field should be nil after unmarshal, got %v", unmarshalled.Prerequisites)
 	}
-	if unmarshalled.Dependents != nil {
-		t.Errorf("Dependents pointer field should be nil after unmarshal, got %v", unmarshalled.Dependents)
+	if unmarshalled.DownstreamRequired != nil {
+		t.Errorf("DownstreamRequired pointer field should be nil after unmarshal, got %v", unmarshalled.DownstreamRequired)
+	}
+	if unmarshalled.DownstreamSuggested != nil {
+		t.Errorf("DownstreamSuggested pointer field should be nil after unmarshal, got %v", unmarshalled.DownstreamSuggested)
 	}
 }
 
@@ -91,20 +110,24 @@ func TestTaskJSONMarshalling(t *testing.T) {
 
 	// Create a task with both ID fields and pointer fields populated
 	task := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1", "suggested-2"},
 		// Populate pointer fields - these should NOT be marshalled
-		Dependencies: []*Task{
+		Prerequisites: []*Task{
 			{ID: "should-not-appear-1"},
 			{ID: "should-not-appear-2"},
 		},
-		Dependents: []*Task{
+		DownstreamRequired: []*Task{
 			{ID: "should-not-appear-3"},
+		},
+		DownstreamSuggested: []*Task{
+			{ID: "should-not-appear-4"},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -118,15 +141,30 @@ func TestTaskJSONMarshalling(t *testing.T) {
 
 	jsonStr := string(data)
 
-	// Verify that DependencyIDs and DependentIDs are present with JSON field names
-	if !strings.Contains(jsonStr, `"dependencies"`) {
-		t.Error("Expected 'dependencies' field in JSON output")
+	// Verify that PrerequisiteIDs, DownstreamRequiredIDs, and DownstreamSuggestedIDs are present with JSON field names
+	if !strings.Contains(jsonStr, `"prerequisites"`) {
+		t.Error("Expected 'prerequisites' field in JSON output")
 	}
-	if !strings.Contains(jsonStr, `"dep-1"`) {
-		t.Error("Expected 'dep-1' in JSON output")
+	if !strings.Contains(jsonStr, `"prereq-1"`) {
+		t.Error("Expected 'prereq-1' in JSON output")
 	}
-	if !strings.Contains(jsonStr, `"dependents"`) {
-		t.Error("Expected 'dependents' field in JSON output")
+	if !strings.Contains(jsonStr, `"prereq-2"`) {
+		t.Error("Expected 'prereq-2' in JSON output")
+	}
+	if !strings.Contains(jsonStr, `"downstream_required"`) {
+		t.Error("Expected 'downstream_required' field in JSON output")
+	}
+	if !strings.Contains(jsonStr, `"required-1"`) {
+		t.Error("Expected 'required-1' in JSON output")
+	}
+	if !strings.Contains(jsonStr, `"downstream_suggested"`) {
+		t.Error("Expected 'downstream_suggested' field in JSON output")
+	}
+	if !strings.Contains(jsonStr, `"suggested-1"`) {
+		t.Error("Expected 'suggested-1' in JSON output")
+	}
+	if !strings.Contains(jsonStr, `"suggested-2"`) {
+		t.Error("Expected 'suggested-2' in JSON output")
 	}
 
 	// Verify that pointer field values are NOT present
@@ -141,19 +179,25 @@ func TestTaskJSONMarshalling(t *testing.T) {
 	}
 
 	// Verify ID fields were preserved
-	if len(unmarshalled.DependencyIDs) != 2 {
-		t.Errorf("Expected 2 dependency IDs, got %d", len(unmarshalled.DependencyIDs))
+	if len(unmarshalled.PrerequisiteIDs) != 2 {
+		t.Errorf("Expected 2 prerequisite IDs, got %d", len(unmarshalled.PrerequisiteIDs))
 	}
-	if len(unmarshalled.DependentIDs) != 1 {
-		t.Errorf("Expected 1 dependent ID, got %d", len(unmarshalled.DependentIDs))
+	if len(unmarshalled.DownstreamRequiredIDs) != 1 {
+		t.Errorf("Expected 1 downstream required ID, got %d", len(unmarshalled.DownstreamRequiredIDs))
+	}
+	if len(unmarshalled.DownstreamSuggestedIDs) != 2 {
+		t.Errorf("Expected 2 downstream suggested IDs, got %d", len(unmarshalled.DownstreamSuggestedIDs))
 	}
 
 	// Verify pointer fields are nil/empty after unmarshalling
-	if unmarshalled.Dependencies != nil {
-		t.Errorf("Dependencies pointer field should be nil after unmarshal, got %v", unmarshalled.Dependencies)
+	if unmarshalled.Prerequisites != nil {
+		t.Errorf("Prerequisites pointer field should be nil after unmarshal, got %v", unmarshalled.Prerequisites)
 	}
-	if unmarshalled.Dependents != nil {
-		t.Errorf("Dependents pointer field should be nil after unmarshal, got %v", unmarshalled.Dependents)
+	if unmarshalled.DownstreamRequired != nil {
+		t.Errorf("DownstreamRequired pointer field should be nil after unmarshal, got %v", unmarshalled.DownstreamRequired)
+	}
+	if unmarshalled.DownstreamSuggested != nil {
+		t.Errorf("DownstreamSuggested pointer field should be nil after unmarshal, got %v", unmarshalled.DownstreamSuggested)
 	}
 }
 
@@ -162,15 +206,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Create a base task
 	baseTask := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 
 	// Test 1: Same task should equal itself
@@ -180,15 +225,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 2: Identical task should be equal
 	identicalTask := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if !baseTask.Equals(identicalTask) {
 		t.Error("Identical tasks should be equal")
@@ -211,15 +257,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 5: Different ID
 	differentID := &Task{
-		ID:            "test-2",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-2",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentID) {
 		t.Error("Tasks with different IDs should not be equal")
@@ -227,15 +274,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 6: Different Name
 	differentName := &Task{
-		ID:            "test-1",
-		Name:          "Different Name",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Different Name",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentName) {
 		t.Error("Tasks with different Names should not be equal")
@@ -243,15 +291,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 7: Different Summary
 	differentSummary := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Different Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Different Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentSummary) {
 		t.Error("Tasks with different Summaries should not be equal")
@@ -259,15 +308,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 8: Different Description
 	differentDescription := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Different Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Different Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentDescription) {
 		t.Error("Tasks with different Descriptions should not be equal")
@@ -275,15 +325,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 9: Different CreatedAt
 	differentCreatedAt := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now.Add(time.Hour),
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now.Add(time.Hour),
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentCreatedAt) {
 		t.Error("Tasks with different CreatedAt should not be equal")
@@ -291,15 +342,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 10: Different UpdatedAt
 	differentUpdatedAt := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now.Add(time.Hour),
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now.Add(time.Hour),
 	}
 	if baseTask.Equals(differentUpdatedAt) {
 		t.Error("Tasks with different UpdatedAt should not be equal")
@@ -307,15 +359,16 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 11: Different Tags length
 	differentTagsLength := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentTagsLength) {
 		t.Error("Tasks with different Tags length should not be equal")
@@ -323,124 +376,167 @@ func TestTaskEquals(t *testing.T) {
 
 	// Test 12: Different Tags values
 	differentTagsValues := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag3"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag3"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentTagsValues) {
 		t.Error("Tasks with different Tags values should not be equal")
 	}
 
-	// Test 13: Different DependencyIDs length
+	// Test 13: Different PrerequisiteIDs length
 	differentDepsLength := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1"}, // Only 1 instead of 2
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentDepsLength) {
-		t.Error("Tasks with different DependencyIDs length should not be equal")
+		t.Error("Tasks with different PrerequisiteIDs length should not be equal")
 	}
 
-	// Test 14: Different DependencyIDs values
+	// Test 14: Different PrerequisiteIDs values
 	differentDepsValues := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-3"},
-		DependentIDs:  []string{"dependent-1"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-3"}, // Different value
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentDepsValues) {
-		t.Error("Tasks with different DependencyIDs values should not be equal")
+		t.Error("Tasks with different PrerequisiteIDs values should not be equal")
 	}
 
-	// Test 15: Different DependentIDs length
+	// Test 15: Different DownstreamRequiredIDs length
 	differentDependentsLength := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{}, // Empty instead of 1
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentDependentsLength) {
-		t.Error("Tasks with different DependentIDs length should not be equal")
+		t.Error("Tasks with different DownstreamRequiredIDs length should not be equal")
 	}
 
-	// Test 16: Different DependentIDs values
+	// Test 16: Different DownstreamRequiredIDs values
 	differentDependentsValues := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-2"},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-2"}, // Different value
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if baseTask.Equals(differentDependentsValues) {
-		t.Error("Tasks with different DependentIDs values should not be equal")
+		t.Error("Tasks with different DownstreamRequiredIDs values should not be equal")
 	}
 
-	// Test 17: Empty slices vs nil slices (should be equal based on length comparison)
+	// Test 17: Different DownstreamSuggestedIDs length
+	differentSuggestedLength := &Task{
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{}, // Empty instead of 1
+		CreatedAt:              now,
+		UpdatedAt:              now,
+	}
+	if baseTask.Equals(differentSuggestedLength) {
+		t.Error("Tasks with different DownstreamSuggestedIDs length should not be equal")
+	}
+
+	// Test 18: Different DownstreamSuggestedIDs values
+	differentSuggestedValues := &Task{
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-2"}, // Different value
+		CreatedAt:              now,
+		UpdatedAt:              now,
+	}
+	if baseTask.Equals(differentSuggestedValues) {
+		t.Error("Tasks with different DownstreamSuggestedIDs values should not be equal")
+	}
+
+	// Test 19: Empty slices vs nil slices (should be equal based on length comparison)
 	emptySlices := &Task{
-		ID:            "test-empty",
-		Name:          "Empty Slices",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{},
-		DependencyIDs: []string{},
-		DependentIDs:  []string{},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-empty",
+		Name:                   "Empty Slices",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{},
+		PrerequisiteIDs:        []string{},
+		DownstreamRequiredIDs:  []string{},
+		DownstreamSuggestedIDs: []string{},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	nilSlices := &Task{
-		ID:            "test-empty",
-		Name:          "Empty Slices",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          nil,
-		DependencyIDs: nil,
-		DependentIDs:  nil,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-empty",
+		Name:                   "Empty Slices",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   nil,
+		PrerequisiteIDs:        nil,
+		DownstreamRequiredIDs:  nil,
+		DownstreamSuggestedIDs: nil,
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if !emptySlices.Equals(nilSlices) {
 		t.Error("Tasks with empty slices and nil slices should be equal")
 	}
 
-	// Test 18: Pointer fields should not affect equality
+	// Test 20: Pointer fields should not affect equality
 	withPointers := &Task{
-		ID:            "test-1",
-		Name:          "Test Task",
-		Summary:       "Summary",
-		Description:   "Description",
-		Tags:          []string{"tag1", "tag2"},
-		DependencyIDs: []string{"dep-1", "dep-2"},
-		DependentIDs:  []string{"dependent-1"},
-		Dependencies:  []*Task{{ID: "different"}},
-		Dependents:    []*Task{{ID: "different"}},
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		ID:                     "test-1",
+		Name:                   "Test Task",
+		Summary:                "Summary",
+		Description:            "Description",
+		Tags:                   []string{"tag1", "tag2"},
+		PrerequisiteIDs:        []string{"prereq-1", "prereq-2"},
+		DownstreamRequiredIDs:  []string{"required-1"},
+		DownstreamSuggestedIDs: []string{"suggested-1"},
+		Prerequisites:          []*Task{{ID: "different"}},
+		DownstreamRequired:     []*Task{{ID: "different"}},
+		DownstreamSuggested:    []*Task{{ID: "different"}},
+		CreatedAt:              now,
+		UpdatedAt:              now,
 	}
 	if !baseTask.Equals(withPointers) {
 		t.Error("Pointer fields should not affect equality comparison")
