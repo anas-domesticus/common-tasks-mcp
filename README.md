@@ -15,6 +15,23 @@ This is a **generic, reusable DAG framework** that exposes graph operations thro
 
 The system breaks down knowledge silos by providing AI assistants with structured, queryable knowledge graphs. Whether it's institutional knowledge about development workflows, service dependencies, recipe relationships, or learning paths—the same framework adapts to your domain.
 
+## Motivation
+
+AI assistants and agentic workflows increasingly need domain-specific knowledge to function effectively. However, traditional approaches—dumping large documentation files into prompts or expecting AI to parse scattered tribal knowledge—are inefficient and hit context window limits quickly. Modern AI systems work best with **small, targeted pieces of information** delivered precisely when needed.
+
+This is where structured knowledge graphs excel. Instead of providing an AI with a 50-page deployment runbook, you can let it query: "What are the prerequisites for deploying to production?" The system returns only the relevant nodes and their relationships—exactly the context needed, nothing more. This **"less is more"** principle is fundamental to effective context engineering.
+
+The DAG structure provides semantic relationships that AI systems can navigate intelligently. When an AI assistant asks about a task, it doesn't just get the task description—it learns what must happen first (prerequisites), what must follow (required downstream), and what's recommended (suggested downstream). This allows agentic workflows to plan multi-step operations, understand dependencies, and make informed decisions without overloading their context windows.
+
+**Common applications:**
+- **AI code assistants** understanding repository workflows and build processes
+- **Agentic systems** planning multi-step operations with dependency awareness
+- **Automation tools** that need to know "what comes next" in a workflow
+- **Knowledge management** systems that surface institutional knowledge on-demand
+- **Decision support** systems navigating complex operational procedures
+
+By encoding domain knowledge as queryable graphs rather than static documents, this server enables AI systems to be more precise, efficient, and context-aware.
+
 ## Features
 
 - **Configuration-driven identity**: Server name, terminology, and tool names adapt to your domain
