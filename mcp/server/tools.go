@@ -1,10 +1,11 @@
 package server
 
 import (
-	"common-tasks-mcp/pkg/task_manager/types"
+	"common-tasks-mcp/pkg/graph_manager/types"
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -178,35 +179,35 @@ func (s *Server) handleListTasks(ctx context.Context, req *mcp.CallToolRequest) 
 		}, nil
 	}
 
-	s.logger.Info("Listing tasks", zap.Strings("tags", args.Tags))
+	s.logger.Info("Listing nodes", zap.Strings("tags", args.Tags))
 
-	var tasks []*types.Task
+	var nodes []*types.Node
 
 	if len(args.Tags) > 0 {
-		// Get tasks for each tag and merge (union)
-		taskMap := make(map[string]*types.Task)
+		// Get nodes for each tag and merge (union)
+		nodeMap := make(map[string]*types.Node)
 		for _, tag := range args.Tags {
-			tagTasks, _ := s.taskManager.GetTasksByTag(tag)
-			s.logger.Debug("Retrieved tasks by tag", zap.String("tag", tag), zap.Int("count", len(tagTasks)))
-			for _, task := range tagTasks {
-				taskMap[task.ID] = task
+			tagNodes, _ := s.taskManager.GetNodesByTag(tag)
+			s.logger.Debug("Retrieved nodes by tag", zap.String("tag", tag), zap.Int("count", len(tagNodes)))
+			for _, node := range tagNodes {
+				nodeMap[node.ID] = node
 			}
 		}
 		// Convert map to slice
-		for _, task := range taskMap {
-			tasks = append(tasks, task)
+		for _, node := range nodeMap {
+			nodes = append(nodes, node)
 		}
 	} else {
-		tasks = s.taskManager.ListAllTasks()
-		s.logger.Debug("Retrieved all tasks", zap.Int("count", len(tasks)))
+		nodes = s.taskManager.ListAllNodes()
+		s.logger.Debug("Retrieved all nodes", zap.Int("count", len(nodes)))
 	}
 
-	s.logger.Info("Successfully listed tasks", zap.Int("task_count", len(tasks)))
+	s.logger.Info("Successfully listed nodes", zap.Int("node_count", len(nodes)))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: formatTasksAsMarkdown(tasks),
+				Text: formatNodesAsMarkdown(nodes),
 			},
 		},
 	}, nil
@@ -232,27 +233,27 @@ func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		}, nil
 	}
 
-	s.logger.Info("Getting task", zap.String("task_id", args.ID))
+	s.logger.Info("Getting node", zap.String("node_id", args.ID))
 
-	task, err := s.taskManager.GetTask(args.ID)
+	node, err := s.taskManager.GetNode(args.ID)
 	if err != nil {
-		s.logger.Error("Failed to get task", zap.String("task_id", args.ID), zap.Error(err))
+		s.logger.Error("Failed to get node", zap.String("node_id", args.ID), zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to get task: %v", err),
+					Text: fmt.Sprintf("failed to get node: %v", err),
 				},
 			},
 		}, nil
 	}
 
-	s.logger.Info("Successfully retrieved task", zap.String("task_id", args.ID), zap.String("task_name", task.Name))
+	s.logger.Info("Successfully retrieved node", zap.String("node_id", args.ID), zap.String("node_name", node.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: formatTaskAsMarkdown(task, s.taskManager),
+				Text: formatNodeAsMarkdown(node, s.taskManager),
 			},
 		},
 	}, nil
@@ -285,64 +286,68 @@ func (s *Server) handleAddTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		}, nil
 	}
 
-	s.logger.Info("Adding new task",
-		zap.String("task_id", args.ID),
-		zap.String("task_name", args.Name),
+	s.logger.Info("Adding new node",
+		zap.String("node_id", args.ID),
+		zap.String("node_name", args.Name),
 		zap.Strings("tags", args.Tags),
 	)
 
 	now := time.Now()
-	task := &types.Task{
-		ID:                     args.ID,
-		Name:                   args.Name,
-		Summary:                args.Summary,
-		Description:            args.Description,
-		Tags:                   args.Tags,
-		PrerequisiteIDs:        args.PrerequisiteIDs,
-		DownstreamRequiredIDs:  args.DownstreamRequiredIDs,
-		DownstreamSuggestedIDs: args.DownstreamSuggestedIDs,
-		CreatedAt:              now,
-		UpdatedAt:              now,
+	node := &types.Node{
+		ID:          args.ID,
+		Name:        args.Name,
+		Summary:     args.Summary,
+		Description: args.Description,
+		Tags:        args.Tags,
+		EdgeIDs: map[string][]string{
+			"prerequisites":        args.PrerequisiteIDs,
+			"downstream_required":  args.DownstreamRequiredIDs,
+			"downstream_suggested": args.DownstreamSuggestedIDs,
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
-	if err := s.taskManager.AddTask(task); err != nil {
-		s.logger.Error("Failed to add task",
-			zap.String("task_id", args.ID),
-			zap.String("task_name", args.Name),
+	if err := s.taskManager.AddNode(node); err != nil {
+		s.logger.Error("Failed to add node",
+			zap.String("node_id", args.ID),
+			zap.String("node_name", args.Name),
 			zap.Error(err),
 		)
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to add task: %v", err),
+					Text: fmt.Sprintf("failed to add node: %v", err),
 				},
 			},
 		}, nil
 	}
 
 	// Persist changes to disk
-	if err := s.taskManager.PersistToDir(s.config.Directory); err != nil {
-		s.logger.Error("Failed to persist task to disk",
-			zap.String("task_id", args.ID),
+	nodesPath := filepath.Join(s.config.Directory, "nodes")
+	if err := s.taskManager.PersistToDir(nodesPath); err != nil {
+		s.logger.Error("Failed to persist node to disk",
+			zap.String("node_id", args.ID),
+			zap.String("path", nodesPath),
 			zap.Error(err),
 		)
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{
-					Text: fmt.Sprintf("task added but failed to persist to disk: %v", err),
+					Text: fmt.Sprintf("node added but failed to persist to disk: %v", err),
 				},
 			},
 		}, nil
 	}
 
-	s.logger.Info("Successfully added task", zap.String("task_id", args.ID), zap.String("task_name", args.Name))
+	s.logger.Info("Successfully added node", zap.String("node_id", args.ID), zap.String("node_name", args.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: fmt.Sprintf("✓ Task `%s` created successfully\n\n%s", task.ID, formatTaskAsMarkdown(task, s.taskManager)),
+				Text: fmt.Sprintf("✓ Node `%s` created successfully\n\n%s", node.ID, formatNodeAsMarkdown(node, s.taskManager)),
 			},
 		},
 	}, nil
@@ -375,80 +380,84 @@ func (s *Server) handleUpdateTask(ctx context.Context, req *mcp.CallToolRequest)
 		}, nil
 	}
 
-	s.logger.Info("Updating task",
-		zap.String("task_id", args.ID),
-		zap.String("task_name", args.Name),
+	s.logger.Info("Updating node",
+		zap.String("node_id", args.ID),
+		zap.String("node_name", args.Name),
 		zap.Strings("tags", args.Tags),
 	)
 
-	// Get existing task to preserve CreatedAt timestamp
-	existingTask, err := s.taskManager.GetTask(args.ID)
+	// Get existing node to preserve CreatedAt timestamp
+	existingNode, err := s.taskManager.GetNode(args.ID)
 	if err != nil {
-		s.logger.Error("Failed to get existing task for update",
-			zap.String("task_id", args.ID),
+		s.logger.Error("Failed to get existing node for update",
+			zap.String("node_id", args.ID),
 			zap.Error(err),
 		)
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to get existing task: %v", err),
+					Text: fmt.Sprintf("failed to get existing node: %v", err),
 				},
 			},
 		}, nil
 	}
 
-	task := &types.Task{
-		ID:                     args.ID,
-		Name:                   args.Name,
-		Summary:                args.Summary,
-		Description:            args.Description,
-		Tags:                   args.Tags,
-		PrerequisiteIDs:        args.PrerequisiteIDs,
-		DownstreamRequiredIDs:  args.DownstreamRequiredIDs,
-		DownstreamSuggestedIDs: args.DownstreamSuggestedIDs,
-		CreatedAt:              existingTask.CreatedAt,
-		UpdatedAt:              time.Now(),
+	node := &types.Node{
+		ID:          args.ID,
+		Name:        args.Name,
+		Summary:     args.Summary,
+		Description: args.Description,
+		Tags:        args.Tags,
+		EdgeIDs: map[string][]string{
+			"prerequisites":        args.PrerequisiteIDs,
+			"downstream_required":  args.DownstreamRequiredIDs,
+			"downstream_suggested": args.DownstreamSuggestedIDs,
+		},
+		CreatedAt: existingNode.CreatedAt,
+		UpdatedAt: time.Now(),
 	}
 
-	if err := s.taskManager.UpdateTask(task); err != nil {
-		s.logger.Error("Failed to update task",
-			zap.String("task_id", args.ID),
-			zap.String("task_name", args.Name),
+	if err := s.taskManager.UpdateNode(node); err != nil {
+		s.logger.Error("Failed to update node",
+			zap.String("node_id", args.ID),
+			zap.String("node_name", args.Name),
 			zap.Error(err),
 		)
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to update task: %v", err),
+					Text: fmt.Sprintf("failed to update node: %v", err),
 				},
 			},
 		}, nil
 	}
 
 	// Persist changes to disk
-	if err := s.taskManager.PersistToDir(s.config.Directory); err != nil {
-		s.logger.Error("Failed to persist task to disk",
-			zap.String("task_id", args.ID),
+	nodesPath := filepath.Join(s.config.Directory, "nodes")
+	if err := s.taskManager.PersistToDir(nodesPath); err != nil {
+		s.logger.Error("Failed to persist node to disk",
+			zap.String("node_id", args.ID),
+			zap.String("path", nodesPath),
 			zap.Error(err),
 		)
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{
-					Text: fmt.Sprintf("task updated but failed to persist to disk: %v", err),
+					Text: fmt.Sprintf("node updated but failed to persist to disk: %v", err),
 				},
 			},
 		}, nil
 	}
 
-	s.logger.Info("Successfully updated task", zap.String("task_id", args.ID), zap.String("task_name", args.Name))
+	s.logger.Info("Successfully updated node", zap.String("node_id", args.ID), zap.String("node_name", args.Name))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: fmt.Sprintf("✓ Task `%s` updated successfully\n\n%s", task.ID, formatTaskAsMarkdown(task, s.taskManager)),
+				Text: fmt.Sprintf("✓ Node `%s` updated successfully\n\n%s", node.ID, formatNodeAsMarkdown(node, s.taskManager)),
 			},
 		},
 	}, nil
@@ -474,42 +483,44 @@ func (s *Server) handleDeleteTask(ctx context.Context, req *mcp.CallToolRequest)
 		}, nil
 	}
 
-	s.logger.Info("Deleting task", zap.String("task_id", args.ID))
+	s.logger.Info("Deleting node", zap.String("node_id", args.ID))
 
-	if err := s.taskManager.DeleteTask(args.ID); err != nil {
-		s.logger.Error("Failed to delete task", zap.String("task_id", args.ID), zap.Error(err))
+	if err := s.taskManager.DeleteNode(args.ID); err != nil {
+		s.logger.Error("Failed to delete node", zap.String("node_id", args.ID), zap.Error(err))
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{
-					Text: fmt.Sprintf("failed to delete task: %v", err),
+					Text: fmt.Sprintf("failed to delete node: %v", err),
 				},
 			},
 		}, nil
 	}
 
 	// Persist changes to disk
-	if err := s.taskManager.PersistToDir(s.config.Directory); err != nil {
-		s.logger.Error("Failed to persist task deletion to disk",
-			zap.String("task_id", args.ID),
+	nodesPath := filepath.Join(s.config.Directory, "nodes")
+	if err := s.taskManager.PersistToDir(nodesPath); err != nil {
+		s.logger.Error("Failed to persist node deletion to disk",
+			zap.String("node_id", args.ID),
+			zap.String("path", nodesPath),
 			zap.Error(err),
 		)
 		return &mcp.CallToolResult{
 			IsError: true,
 			Content: []mcp.Content{
 				&mcp.TextContent{
-					Text: fmt.Sprintf("task deleted but failed to persist to disk: %v", err),
+					Text: fmt.Sprintf("node deleted but failed to persist to disk: %v", err),
 				},
 			},
 		}, nil
 	}
 
-	s.logger.Info("Successfully deleted task", zap.String("task_id", args.ID))
+	s.logger.Info("Successfully deleted node", zap.String("node_id", args.ID))
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{
-				Text: fmt.Sprintf("Task %s deleted successfully", args.ID),
+				Text: fmt.Sprintf("Node %s deleted successfully", args.ID),
 			},
 		},
 	}, nil

@@ -1,35 +1,36 @@
 package server
 
 import (
-	"common-tasks-mcp/pkg/task_manager"
-	"common-tasks-mcp/pkg/task_manager/types"
+	"common-tasks-mcp/pkg/graph_manager"
+	"common-tasks-mcp/pkg/graph_manager/types"
 	"fmt"
 	"strings"
 )
 
-// formatTasksAsMarkdown formats a list of tasks as markdown
-func formatTasksAsMarkdown(tasks []*types.Task) string {
-	if len(tasks) == 0 {
-		return "No tasks found."
+// formatNodesAsMarkdown formats a list of nodes as markdown
+func formatNodesAsMarkdown(nodes []*types.Node) string {
+	if len(nodes) == 0 {
+		return "No nodes found."
 	}
 
 	var sb strings.Builder
-	for _, task := range tasks {
-		sb.WriteString(fmt.Sprintf("%s - %s\n", task.ID, task.Summary))
+	for _, node := range nodes {
+		sb.WriteString(fmt.Sprintf("%s - %s\n", node.ID, node.Summary))
 	}
 
 	return sb.String()
 }
 
-// formatTaskAsMarkdown formats a single task with full details as markdown
-func formatTaskAsMarkdown(task *types.Task, tm *task_manager.Manager) string {
+// formatNodeAsMarkdown formats a single node with full details as markdown
+func formatNodeAsMarkdown(node *types.Node, tm *graph_manager.Manager) string {
 	var sb strings.Builder
 
-	// Prerequisites first
-	if len(task.PrerequisiteIDs) > 0 {
+	// Get prerequisites from EdgeIDs
+	prereqIDs := node.GetEdgeIDs("prerequisites")
+	if len(prereqIDs) > 0 {
 		sb.WriteString("**Prerequisites:**\n\n")
-		for _, id := range task.PrerequisiteIDs {
-			prereq, err := tm.GetTask(id)
+		for _, id := range prereqIDs {
+			prereq, err := tm.GetNode(id)
 			if err == nil {
 				sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, prereq.Description))
 			} else {
@@ -38,14 +39,15 @@ func formatTaskAsMarkdown(task *types.Task, tm *task_manager.Manager) string {
 		}
 	}
 
-	// Main task
-	sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", task.ID, task.Description))
+	// Main node
+	sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", node.ID, node.Description))
 
 	// Required downstream
-	if len(task.DownstreamRequiredIDs) > 0 {
+	downstreamReqIDs := node.GetEdgeIDs("downstream_required")
+	if len(downstreamReqIDs) > 0 {
 		sb.WriteString("**Required next:**\n\n")
-		for _, id := range task.DownstreamRequiredIDs {
-			next, err := tm.GetTask(id)
+		for _, id := range downstreamReqIDs {
+			next, err := tm.GetNode(id)
 			if err == nil {
 				sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, next.Description))
 			} else {
@@ -55,10 +57,11 @@ func formatTaskAsMarkdown(task *types.Task, tm *task_manager.Manager) string {
 	}
 
 	// Suggested downstream
-	if len(task.DownstreamSuggestedIDs) > 0 {
+	downstreamSugIDs := node.GetEdgeIDs("downstream_suggested")
+	if len(downstreamSugIDs) > 0 {
 		sb.WriteString("**Suggested next:**\n\n")
-		for _, id := range task.DownstreamSuggestedIDs {
-			next, err := tm.GetTask(id)
+		for _, id := range downstreamSugIDs {
+			next, err := tm.GetNode(id)
 			if err == nil {
 				sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, next.Description))
 			} else {

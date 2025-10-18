@@ -5,8 +5,9 @@ import (
 	_ "embed"
 	"fmt"
 	"net/http"
+	"path/filepath"
 
-	"common-tasks-mcp/pkg/task_manager"
+	"common-tasks-mcp/pkg/graph_manager"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
@@ -22,31 +23,49 @@ var captureWorkflowPrompt string
 type Server struct {
 	mcp         *mcp.Server
 	config      Config
-	taskManager *task_manager.Manager
+	taskManager *graph_manager.Manager
 	logger      *zap.Logger
 }
 
-// New creates a new MCP server instance with a task manager
+// New creates a new MCP server instance with a node manager
 func New(cfg Config, logger *zap.Logger) (*Server, error) {
 	logger.Info("Creating MCP server", zap.String("directory", cfg.Directory))
 
-	// Create task manager
-	taskMgr := task_manager.NewManager(logger)
+	// Create node manager
+	taskMgr := graph_manager.NewManager(logger)
 
-	// Load tasks from directory if any exist
-	logger.Info("Loading tasks from directory", zap.String("path", cfg.Directory))
-	if err := taskMgr.LoadFromDir(cfg.Directory); err != nil {
-		logger.Warn("Could not load tasks from directory",
-			zap.String("directory", cfg.Directory),
+	// Load relationships configuration if it exists
+	relationshipsPath := filepath.Join(cfg.Directory, "relationships.yaml")
+	logger.Info("Loading relationship definitions", zap.String("path", relationshipsPath))
+	if err := taskMgr.LoadRelationshipsFromFile(relationshipsPath); err != nil {
+		logger.Warn("Could not load relationships configuration",
+			zap.String("path", relationshipsPath),
+			zap.Error(err),
+		)
+		// Log the error but continue - relationships file is optional
+		if cfg.Verbose {
+			fmt.Printf("Warning: Could not load relationships from %s: %v\n", relationshipsPath, err)
+		}
+	} else {
+		// TODO: Add method to get relationship count from manager
+		logger.Info("Relationships loaded successfully", zap.String("path", relationshipsPath))
+	}
+
+	// Load nodes from directory if any exist
+	nodesPath := filepath.Join(cfg.Directory, "nodes")
+	logger.Info("Loading nodes from directory", zap.String("path", nodesPath))
+	if err := taskMgr.LoadNodesFromDir(nodesPath); err != nil {
+		logger.Warn("Could not load nodes from directory",
+			zap.String("directory", nodesPath),
 			zap.Error(err),
 		)
 		// Log the error but continue if directory doesn't exist or is empty
 		if cfg.Verbose {
-			fmt.Printf("Warning: Could not load tasks from %s: %v\n", cfg.Directory, err)
+			fmt.Printf("Warning: Could not load nodes from %s: %v\n", nodesPath, err)
 		}
 	} else {
-		taskCount := len(taskMgr.ListAllTasks())
-		logger.Info("Tasks loaded successfully", zap.Int("count", taskCount))
+		nodeCount := len(taskMgr.ListAllNodes())
+		logger.Info("Nodes loaded successfully", zap.Int("count", nodeCount))
 	}
 
 	// Create MCP server
@@ -55,7 +74,7 @@ func New(cfg Config, logger *zap.Logger) (*Server, error) {
 		Name:    "common-tasks-mcp",
 		Version: "0.1.0",
 	}, &mcp.ServerOptions{
-		Instructions: "This server provides access to commonly performed development tasks and workflows. Each task includes: what needs to be done first (prerequisites), what must be done after (required follow-ups), and what's recommended to do after (suggested follow-ups). Use this to understand the complete workflow for any development task, not just the immediate action. Start by listing tasks with relevant tags to find what you need, then get the full task details to see the complete workflow.",
+		Instructions: "This server provides access to commonly performed development tasks and workflows. Each task includes: what needs to be done first (prerequisites), what must be done after (required follow-ups), and what's recommended to do after (suggested follow-ups). Use this to understand the complete workflow for any development task, not just the immediate action. Start by listing tasks with relevant tags to find what you need, then get the full node details to see the complete workflow.",
 	})
 
 	srv := &Server{
