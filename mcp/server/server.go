@@ -80,18 +80,14 @@ func New(cfg Config, logger *zap.Logger) (*Server, error) {
 	nodesPath := filepath.Join(cfg.Directory, "nodes")
 	logger.Info("Loading nodes from directory", zap.String("path", nodesPath))
 	if err := taskMgr.LoadNodesFromDir(nodesPath); err != nil {
-		logger.Warn("Could not load nodes from directory",
+		logger.Error("Failed to load nodes from directory",
 			zap.String("directory", nodesPath),
 			zap.Error(err),
 		)
-		// Log the error but continue if directory doesn't exist or is empty
-		if cfg.Verbose {
-			fmt.Printf("Warning: Could not load nodes from %s: %v\n", nodesPath, err)
-		}
-	} else {
-		nodeCount := len(taskMgr.ListAllNodes())
-		logger.Info("Nodes loaded successfully", zap.Int("count", nodeCount))
+		return nil, fmt.Errorf("failed to load nodes: %w", err)
 	}
+	nodeCount := len(taskMgr.ListAllNodes())
+	logger.Info("Nodes loaded successfully", zap.Int("count", nodeCount))
 
 	// Create MCP server using configuration from mcp.yaml
 	logger.Debug("Initializing MCP server instance")
@@ -110,18 +106,12 @@ func New(cfg Config, logger *zap.Logger) (*Server, error) {
 		prompts:     make(map[string]*PromptInfo),
 	}
 
-	// Load prompts from disk
+	// Load prompts from disk (optional)
 	promptsPath := filepath.Join(cfg.Directory, "prompts")
-	logger.Info("Loading prompts from directory", zap.String("path", promptsPath))
+	logger.Debug("Loading prompts from directory", zap.String("path", promptsPath))
 	if err := srv.loadPrompts(promptsPath); err != nil {
-		logger.Warn("Could not load prompts from directory",
-			zap.String("directory", promptsPath),
-			zap.Error(err),
-		)
+		logger.Debug("Prompts not loaded", zap.String("directory", promptsPath), zap.Error(err))
 		// Continue without prompts - they're optional
-		if cfg.Verbose {
-			fmt.Printf("Warning: Could not load prompts from %s: %v\n", promptsPath, err)
-		}
 	} else {
 		logger.Info("Prompts loaded successfully", zap.Int("count", len(srv.prompts)))
 	}
