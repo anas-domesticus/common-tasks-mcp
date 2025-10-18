@@ -104,7 +104,11 @@ func New(cfg Config, logger *zap.Logger) (*Server, error) {
 	// Register all MCP tools
 	logger.Debug("Registering MCP tools")
 	srv.registerTools()
-	logger.Info("MCP tools registered successfully")
+	if cfg.ReadOnly {
+		logger.Info("MCP tools registered successfully (read-only mode: write tools suppressed)")
+	} else {
+		logger.Info("MCP tools registered successfully")
+	}
 
 	// Register all MCP prompts
 	logger.Debug("Registering MCP prompts")

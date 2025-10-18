@@ -16,6 +16,8 @@ import (
 func (s *Server) registerTools() {
 	naming := s.config.MCP.Naming.Node
 
+	// Read-only tools (always registered)
+
 	// List tasks tool
 	s.mcp.AddTool(&mcp.Tool{
 		Name:        fmt.Sprintf("list_%s", naming.Plural),
@@ -48,117 +50,120 @@ func (s *Server) registerTools() {
 		},
 	}, s.handleGetTask)
 
-	// Add task tool
-	s.mcp.AddTool(&mcp.Tool{
-		Name:        fmt.Sprintf("add_%s", naming.Singular),
-		Description: fmt.Sprintf("Create a new %s with its complete workflow. Include what needs to happen before this %s (prerequisites), what must happen after (required follow-ups), and what's recommended after (suggested follow-ups). Use this to document repeatable workflows so future work can follow the same process. The system ensures workflows stay consistent by preventing circular dependencies.", naming.Singular, naming.Singular),
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"id": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("Unique %s identifier", naming.Singular),
+	// Write tools (only registered when not in read-only mode)
+	if !s.config.ReadOnly {
+		// Add task tool
+		s.mcp.AddTool(&mcp.Tool{
+			Name:        fmt.Sprintf("add_%s", naming.Singular),
+			Description: fmt.Sprintf("Create a new %s with its complete workflow. Include what needs to happen before this %s (prerequisites), what must happen after (required follow-ups), and what's recommended after (suggested follow-ups). Use this to document repeatable workflows so future work can follow the same process. The system ensures workflows stay consistent by preventing circular dependencies.", naming.Singular, naming.Singular),
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"id": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("Unique %s identifier", naming.Singular),
+					},
+					"name": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("%s name", naming.DisplaySingular),
+					},
+					"summary": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("Brief summary of the %s", naming.Singular),
+					},
+					"description": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("Detailed description of the %s", naming.Singular),
+					},
+					"tags": map[string]interface{}{
+						"type":        "array",
+						"items":       map[string]string{"type": "string"},
+						"description": "Array of tags for categorization",
+					},
+					"prerequisiteIDs": map[string]interface{}{
+						"type":        "array",
+						"items":       map[string]string{"type": "string"},
+						"description": fmt.Sprintf("Array of prerequisite %s IDs that must be completed first", naming.Singular),
+					},
+					"downstreamRequiredIDs": map[string]interface{}{
+						"type":        "array",
+						"items":       map[string]string{"type": "string"},
+						"description": fmt.Sprintf("Array of required downstream %s IDs that must follow", naming.Singular),
+					},
+					"downstreamSuggestedIDs": map[string]interface{}{
+						"type":        "array",
+						"items":       map[string]string{"type": "string"},
+						"description": fmt.Sprintf("Array of suggested downstream %s IDs", naming.Singular),
+					},
 				},
-				"name": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("%s name", naming.DisplaySingular),
-				},
-				"summary": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("Brief summary of the %s", naming.Singular),
-				},
-				"description": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("Detailed description of the %s", naming.Singular),
-				},
-				"tags": map[string]interface{}{
-					"type":        "array",
-					"items":       map[string]string{"type": "string"},
-					"description": "Array of tags for categorization",
-				},
-				"prerequisiteIDs": map[string]interface{}{
-					"type":        "array",
-					"items":       map[string]string{"type": "string"},
-					"description": fmt.Sprintf("Array of prerequisite %s IDs that must be completed first", naming.Singular),
-				},
-				"downstreamRequiredIDs": map[string]interface{}{
-					"type":        "array",
-					"items":       map[string]string{"type": "string"},
-					"description": fmt.Sprintf("Array of required downstream %s IDs that must follow", naming.Singular),
-				},
-				"downstreamSuggestedIDs": map[string]interface{}{
-					"type":        "array",
-					"items":       map[string]string{"type": "string"},
-					"description": fmt.Sprintf("Array of suggested downstream %s IDs", naming.Singular),
-				},
+				"required": []string{"id", "name"},
 			},
-			"required": []string{"id", "name"},
-		},
-	}, s.handleAddTask)
+		}, s.handleAddTask)
 
-	// Update task tool
-	s.mcp.AddTool(&mcp.Tool{
-		Name:        fmt.Sprintf("update_%s", naming.Singular),
-		Description: fmt.Sprintf("Modify an existing %s's description or workflow relationships. Use this when a process changes and you need to update the documented workflow - for example, adding a new required step, removing an outdated prerequisite, or refining the %s description. The %s ID must already exist.", naming.Singular, naming.Singular, naming.Singular),
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"id": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("%s ID (must exist)", naming.DisplaySingular),
+		// Update task tool
+		s.mcp.AddTool(&mcp.Tool{
+			Name:        fmt.Sprintf("update_%s", naming.Singular),
+			Description: fmt.Sprintf("Modify an existing %s's description or workflow relationships. Use this when a process changes and you need to update the documented workflow - for example, adding a new required step, removing an outdated prerequisite, or refining the %s description. The %s ID must already exist.", naming.Singular, naming.Singular, naming.Singular),
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"id": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("%s ID (must exist)", naming.DisplaySingular),
+					},
+					"name": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("%s name", naming.DisplaySingular),
+					},
+					"summary": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("Brief summary of the %s", naming.Singular),
+					},
+					"description": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("Detailed description of the %s", naming.Singular),
+					},
+					"tags": map[string]interface{}{
+						"type":        "array",
+						"items":       map[string]string{"type": "string"},
+						"description": "Array of tags for categorization",
+					},
+					"prerequisiteIDs": map[string]interface{}{
+						"type":        "array",
+						"items":       map[string]string{"type": "string"},
+						"description": fmt.Sprintf("Array of prerequisite %s IDs that must be completed first", naming.Singular),
+					},
+					"downstreamRequiredIDs": map[string]interface{}{
+						"type":        "array",
+						"items":       map[string]string{"type": "string"},
+						"description": fmt.Sprintf("Array of required downstream %s IDs that must follow", naming.Singular),
+					},
+					"downstreamSuggestedIDs": map[string]interface{}{
+						"type":        "array",
+						"items":       map[string]string{"type": "string"},
+						"description": fmt.Sprintf("Array of suggested downstream %s IDs", naming.Singular),
+					},
 				},
-				"name": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("%s name", naming.DisplaySingular),
-				},
-				"summary": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("Brief summary of the %s", naming.Singular),
-				},
-				"description": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("Detailed description of the %s", naming.Singular),
-				},
-				"tags": map[string]interface{}{
-					"type":        "array",
-					"items":       map[string]string{"type": "string"},
-					"description": "Array of tags for categorization",
-				},
-				"prerequisiteIDs": map[string]interface{}{
-					"type":        "array",
-					"items":       map[string]string{"type": "string"},
-					"description": fmt.Sprintf("Array of prerequisite %s IDs that must be completed first", naming.Singular),
-				},
-				"downstreamRequiredIDs": map[string]interface{}{
-					"type":        "array",
-					"items":       map[string]string{"type": "string"},
-					"description": fmt.Sprintf("Array of required downstream %s IDs that must follow", naming.Singular),
-				},
-				"downstreamSuggestedIDs": map[string]interface{}{
-					"type":        "array",
-					"items":       map[string]string{"type": "string"},
-					"description": fmt.Sprintf("Array of suggested downstream %s IDs", naming.Singular),
-				},
+				"required": []string{"id", "name"},
 			},
-			"required": []string{"id", "name"},
-		},
-	}, s.handleUpdateTask)
+		}, s.handleUpdateTask)
 
-	// Delete task tool
-	s.mcp.AddTool(&mcp.Tool{
-		Name:        fmt.Sprintf("delete_%s", naming.Singular),
-		Description: fmt.Sprintf("Remove a %s entirely. This automatically cleans up any references to this %s in other %s' workflows. Use this when a %s is no longer relevant or has been superseded by a different workflow. This action cannot be undone.", naming.Singular, naming.Singular, naming.Singular, naming.Singular),
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"id": map[string]interface{}{
-					"type":        "string",
-					"description": fmt.Sprintf("%s ID to delete", naming.DisplaySingular),
+		// Delete task tool
+		s.mcp.AddTool(&mcp.Tool{
+			Name:        fmt.Sprintf("delete_%s", naming.Singular),
+			Description: fmt.Sprintf("Remove a %s entirely. This automatically cleans up any references to this %s in other %s' workflows. Use this when a %s is no longer relevant or has been superseded by a different workflow. This action cannot be undone.", naming.Singular, naming.Singular, naming.Singular, naming.Singular),
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"id": map[string]interface{}{
+						"type":        "string",
+						"description": fmt.Sprintf("%s ID to delete", naming.DisplaySingular),
+					},
 				},
+				"required": []string{"id"},
 			},
-			"required": []string{"id"},
-		},
-	}, s.handleDeleteTask)
+		}, s.handleDeleteTask)
+	}
 }
 
 // handleListTasks handles the list_tasks tool

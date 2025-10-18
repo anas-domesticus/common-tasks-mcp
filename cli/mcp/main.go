@@ -24,6 +24,7 @@ var (
 	httpPort  int
 	directory string
 	verbose   bool
+	readOnly  bool
 )
 
 func main() {
@@ -118,6 +119,9 @@ Transport modes:
 		if cmd.Flags().Changed("verbose") {
 			cfg.Verbose = verbose
 		}
+		if cmd.Flags().Changed("read-only") {
+			cfg.ReadOnly = readOnly
+		}
 
 		// Validate configuration after flag overrides
 		if err := cfg.Validate(); err != nil {
@@ -142,10 +146,15 @@ Transport modes:
 			zap.String("transport", cfg.Transport),
 			zap.String("task_directory", cfg.Directory),
 			zap.Bool("verbose", cfg.Verbose),
+			zap.Bool("read_only", cfg.ReadOnly),
 		)
 
 		if cfg.Transport == "http" {
 			log.Info("HTTP transport configured", zap.Int("port", cfg.HTTPPort))
+		}
+
+		if cfg.ReadOnly {
+			log.Info("Read-only mode enabled: write tools will not be available")
 		}
 
 		// Print server info (keep for user visibility)
@@ -157,6 +166,9 @@ Transport modes:
 		}
 		if cfg.Verbose {
 			fmt.Println("Verbose logging enabled")
+		}
+		if cfg.ReadOnly {
+			fmt.Println("Read-only mode: write operations disabled")
 		}
 		fmt.Println()
 
@@ -222,6 +234,7 @@ func init() {
 	serveCmd.Flags().IntVarP(&httpPort, "port", "p", 8080, "HTTP port (only used with --transport=http)")
 	serveCmd.Flags().StringVarP(&directory, "directory", "d", ".", "directory where tasks are stored (git repository)")
 	serveCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
+	serveCmd.Flags().BoolVarP(&readOnly, "read-only", "r", false, "enable read-only mode (suppresses write tools)")
 
 	// Add subcommands
 	rootCmd.AddCommand(versionCmd)
