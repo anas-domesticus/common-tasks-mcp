@@ -31,6 +31,23 @@ type Server struct {
 func New(cfg Config, logger *zap.Logger) (*Server, error) {
 	logger.Info("Creating MCP server", zap.String("directory", cfg.Directory))
 
+	// Load MCP configuration from mcp.yaml
+	mcpConfig, err := LoadMCPConfig(cfg.Directory)
+	if err != nil {
+		logger.Warn("Could not load MCP configuration, using defaults",
+			zap.Error(err),
+		)
+		mcpConfig = DefaultMCPConfig()
+	} else {
+		logger.Info("MCP configuration loaded",
+			zap.String("server_name", mcpConfig.Server.Name),
+			zap.String("display_name", mcpConfig.Server.DisplayName),
+		)
+	}
+
+	// Store MCP config in server config
+	cfg.MCP = mcpConfig
+
 	// Create node manager
 	taskMgr := graph_manager.NewManager(logger)
 
@@ -68,13 +85,13 @@ func New(cfg Config, logger *zap.Logger) (*Server, error) {
 		logger.Info("Nodes loaded successfully", zap.Int("count", nodeCount))
 	}
 
-	// Create MCP server
+	// Create MCP server using configuration from mcp.yaml
 	logger.Debug("Initializing MCP server instance")
 	mcpServer := mcp.NewServer(&mcp.Implementation{
-		Name:    "common-tasks-mcp",
+		Name:    mcpConfig.Server.Name,
 		Version: "0.1.0",
 	}, &mcp.ServerOptions{
-		Instructions: "This server provides access to commonly performed development tasks and workflows. Each task includes: what needs to be done first (prerequisites), what must be done after (required follow-ups), and what's recommended to do after (suggested follow-ups). Use this to understand the complete workflow for any development task, not just the immediate action. Start by listing tasks with relevant tags to find what you need, then get the full node details to see the complete workflow.",
+		Instructions: mcpConfig.Server.Instructions,
 	})
 
 	srv := &Server{

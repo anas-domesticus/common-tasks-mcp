@@ -15,6 +15,9 @@ type Config struct {
 
 	// Verbose logging
 	Verbose bool `env:"MCP_VERBOSE" yaml:"verbose" default:"false"`
+
+	// MCP-specific configuration (loaded from mcp.yaml in Directory)
+	MCP MCPConfig
 }
 
 // Validate implements the config.Validator interface

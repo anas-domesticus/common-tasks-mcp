@@ -14,10 +14,12 @@ import (
 
 // registerTools registers all MCP tools with the server
 func (s *Server) registerTools() {
+	naming := s.config.MCP.Naming.Node
+
 	// List tasks tool
 	s.mcp.AddTool(&mcp.Tool{
-		Name:        "list_tasks",
-		Description: "Browse available tasks, optionally filtered by tags (e.g., 'backend', 'database', 'deployment'). Returns task summaries with ID, name, and a brief description. Use this to discover relevant workflows when starting work in a new area or looking for standard procedures. If you provide multiple tags, you'll get tasks that match any of them.",
+		Name:        fmt.Sprintf("list_%s", naming.Plural),
+		Description: fmt.Sprintf("Browse available %s, optionally filtered by tags (e.g., 'backend', 'database', 'deployment'). Returns %s summaries with ID, name, and a brief description. Use this to discover relevant workflows when starting work in a new area or looking for standard procedures. If you provide multiple tags, you'll get %s that match any of them.", naming.Plural, naming.Singular, naming.Plural),
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
@@ -32,14 +34,14 @@ func (s *Server) registerTools() {
 
 	// Get task tool
 	s.mcp.AddTool(&mcp.Tool{
-		Name:        "get_task",
-		Description: "Get the complete workflow for a specific task by its ID. Returns the full task description plus related tasks: what must be done first (prerequisites), what must follow (required), and what's recommended (suggested). Use this before starting any task to understand the complete workflow, not just the immediate action. This helps you avoid missing critical steps.",
+		Name:        fmt.Sprintf("get_%s", naming.Singular),
+		Description: fmt.Sprintf("Get the complete workflow for a specific %s by its ID. Returns the full %s description plus related %s: what must be done first (prerequisites), what must follow (required), and what's recommended (suggested). Use this before starting any %s to understand the complete workflow, not just the immediate action. This helps you avoid missing critical steps.", naming.Singular, naming.Singular, naming.Plural, naming.Singular),
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"id": map[string]interface{}{
 					"type":        "string",
-					"description": "Task ID",
+					"description": fmt.Sprintf("%s ID", naming.DisplaySingular),
 				},
 			},
 			"required": []string{"id"},
@@ -48,26 +50,26 @@ func (s *Server) registerTools() {
 
 	// Add task tool
 	s.mcp.AddTool(&mcp.Tool{
-		Name:        "add_task",
-		Description: "Create a new task with its complete workflow. Include what needs to happen before this task (prerequisites), what must happen after (required follow-ups), and what's recommended after (suggested follow-ups). Use this to document repeatable workflows so future work can follow the same process. The system ensures workflows stay consistent by preventing circular dependencies.",
+		Name:        fmt.Sprintf("add_%s", naming.Singular),
+		Description: fmt.Sprintf("Create a new %s with its complete workflow. Include what needs to happen before this %s (prerequisites), what must happen after (required follow-ups), and what's recommended after (suggested follow-ups). Use this to document repeatable workflows so future work can follow the same process. The system ensures workflows stay consistent by preventing circular dependencies.", naming.Singular, naming.Singular),
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"id": map[string]interface{}{
 					"type":        "string",
-					"description": "Unique task identifier",
+					"description": fmt.Sprintf("Unique %s identifier", naming.Singular),
 				},
 				"name": map[string]interface{}{
 					"type":        "string",
-					"description": "Task name",
+					"description": fmt.Sprintf("%s name", naming.DisplaySingular),
 				},
 				"summary": map[string]interface{}{
 					"type":        "string",
-					"description": "Brief summary of the task",
+					"description": fmt.Sprintf("Brief summary of the %s", naming.Singular),
 				},
 				"description": map[string]interface{}{
 					"type":        "string",
-					"description": "Detailed description of the task",
+					"description": fmt.Sprintf("Detailed description of the %s", naming.Singular),
 				},
 				"tags": map[string]interface{}{
 					"type":        "array",
@@ -77,17 +79,17 @@ func (s *Server) registerTools() {
 				"prerequisiteIDs": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]string{"type": "string"},
-					"description": "Array of prerequisite task IDs that must be completed first",
+					"description": fmt.Sprintf("Array of prerequisite %s IDs that must be completed first", naming.Singular),
 				},
 				"downstreamRequiredIDs": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]string{"type": "string"},
-					"description": "Array of required downstream task IDs that must follow",
+					"description": fmt.Sprintf("Array of required downstream %s IDs that must follow", naming.Singular),
 				},
 				"downstreamSuggestedIDs": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]string{"type": "string"},
-					"description": "Array of suggested downstream task IDs",
+					"description": fmt.Sprintf("Array of suggested downstream %s IDs", naming.Singular),
 				},
 			},
 			"required": []string{"id", "name"},
@@ -96,26 +98,26 @@ func (s *Server) registerTools() {
 
 	// Update task tool
 	s.mcp.AddTool(&mcp.Tool{
-		Name:        "update_task",
-		Description: "Modify an existing task's description or workflow relationships. Use this when a process changes and you need to update the documented workflow - for example, adding a new required step, removing an outdated prerequisite, or refining the task description. The task ID must already exist.",
+		Name:        fmt.Sprintf("update_%s", naming.Singular),
+		Description: fmt.Sprintf("Modify an existing %s's description or workflow relationships. Use this when a process changes and you need to update the documented workflow - for example, adding a new required step, removing an outdated prerequisite, or refining the %s description. The %s ID must already exist.", naming.Singular, naming.Singular, naming.Singular),
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"id": map[string]interface{}{
 					"type":        "string",
-					"description": "Task ID (must exist)",
+					"description": fmt.Sprintf("%s ID (must exist)", naming.DisplaySingular),
 				},
 				"name": map[string]interface{}{
 					"type":        "string",
-					"description": "Task name",
+					"description": fmt.Sprintf("%s name", naming.DisplaySingular),
 				},
 				"summary": map[string]interface{}{
 					"type":        "string",
-					"description": "Brief summary of the task",
+					"description": fmt.Sprintf("Brief summary of the %s", naming.Singular),
 				},
 				"description": map[string]interface{}{
 					"type":        "string",
-					"description": "Detailed description of the task",
+					"description": fmt.Sprintf("Detailed description of the %s", naming.Singular),
 				},
 				"tags": map[string]interface{}{
 					"type":        "array",
@@ -125,17 +127,17 @@ func (s *Server) registerTools() {
 				"prerequisiteIDs": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]string{"type": "string"},
-					"description": "Array of prerequisite task IDs that must be completed first",
+					"description": fmt.Sprintf("Array of prerequisite %s IDs that must be completed first", naming.Singular),
 				},
 				"downstreamRequiredIDs": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]string{"type": "string"},
-					"description": "Array of required downstream task IDs that must follow",
+					"description": fmt.Sprintf("Array of required downstream %s IDs that must follow", naming.Singular),
 				},
 				"downstreamSuggestedIDs": map[string]interface{}{
 					"type":        "array",
 					"items":       map[string]string{"type": "string"},
-					"description": "Array of suggested downstream task IDs",
+					"description": fmt.Sprintf("Array of suggested downstream %s IDs", naming.Singular),
 				},
 			},
 			"required": []string{"id", "name"},
@@ -144,14 +146,14 @@ func (s *Server) registerTools() {
 
 	// Delete task tool
 	s.mcp.AddTool(&mcp.Tool{
-		Name:        "delete_task",
-		Description: "Remove a task entirely. This automatically cleans up any references to this task in other tasks' workflows. Use this when a task is no longer relevant or has been superseded by a different workflow. This action cannot be undone.",
+		Name:        fmt.Sprintf("delete_%s", naming.Singular),
+		Description: fmt.Sprintf("Remove a %s entirely. This automatically cleans up any references to this %s in other %s' workflows. Use this when a %s is no longer relevant or has been superseded by a different workflow. This action cannot be undone.", naming.Singular, naming.Singular, naming.Singular, naming.Singular),
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"id": map[string]interface{}{
 					"type":        "string",
-					"description": "Task ID to delete",
+					"description": fmt.Sprintf("%s ID to delete", naming.DisplaySingular),
 				},
 			},
 			"required": []string{"id"},
