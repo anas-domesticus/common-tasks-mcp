@@ -17,9 +17,10 @@ description: |-
 tags:
     - mcp
     - go
-prerequisites: []
-downstream_required: []
-downstream_suggested:
-    - run-unit-tests
+edges:
+    prerequisites: []
+    downstream_required: []
+    downstream_suggested:
+        - run-unit-tests
 created_at: 2025-10-17T22:35:56.405370951Z
 updated_at: 2025-10-17T22:37:23.361752824Z

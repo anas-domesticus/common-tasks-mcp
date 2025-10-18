@@ -1,0 +1,28 @@
+# Relationship type definitions for the task graph
+#
+# This file defines the types of relationships that can exist between tasks.
+# Each relationship type forms its own directed acyclic graph (DAG).
+#
+# Fields:
+#   - name: The identifier for this relationship type (used in task EdgeIDs)
+#   - description: Human-readable explanation of what this relationship means
+#   - direction: How this relationship flows relative to execution order
+#       - "backward": Points to things that come before (e.g., prerequisites)
+#       - "forward": Points to things that come after (e.g., downstream tasks)
+#       - "none": No temporal ordering implied
+
+relationships:
+  # Tasks that must be completed before this task can run
+  - name: prerequisites
+    description: Tasks that must be completed before this node
+    direction: backward
+
+  # Tasks that must be completed after this task
+  - name: downstream_required
+    description: Tasks that must be completed after this node
+    direction: forward
+
+  # Tasks that are recommended to run after this task
+  - name: downstream_suggested
+    description: Tasks that are recommended to be completed after this node
+    direction: forward
