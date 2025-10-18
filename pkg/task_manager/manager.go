@@ -13,8 +13,8 @@ import (
 
 // Manager handles task graph operations
 type Manager struct {
-	tasks    map[string]*types.Task
-	tagCache map[string][]*types.Task
+	nodes    map[string]*types.Node
+	tagCache map[string][]*types.Node
 	logger   *zap.Logger
 }
 
@@ -22,15 +22,15 @@ type Manager struct {
 func NewManager(logger *zap.Logger) *Manager {
 	logger.Debug("Creating new task manager")
 	return &Manager{
-		tasks:    make(map[string]*types.Task),
-		tagCache: make(map[string][]*types.Task),
+		nodes:    make(map[string]*types.Node),
+		tagCache: make(map[string][]*types.Node),
 		logger:   logger,
 	}
 }
 
-// AddTask adds a task to the manager.
+// AddNode adds a task to the manager.
 // It uses a clone-validate-commit pattern to ensure the addition doesn't introduce cycles.
-func (m *Manager) AddTask(task *types.Task) error {
+func (m *Manager) AddNode(task *types.Node) error {
 	m.logger.Debug("Adding task")
 
 	if task == nil {
@@ -41,8 +41,8 @@ func (m *Manager) AddTask(task *types.Task) error {
 		m.logger.Error("Attempted to add task with empty ID")
 		return fmt.Errorf("task ID cannot be empty")
 	}
-	if _, exists := m.tasks[task.ID]; exists {
-		m.logger.Warn("Task already exists", zap.String("task_id", task.ID))
+	if _, exists := m.nodes[task.ID]; exists {
+		m.logger.Warn("Node already exists", zap.String("task_id", task.ID))
 		return fmt.Errorf("task with ID %s already exists", task.ID)
 	}
 
@@ -52,11 +52,11 @@ func (m *Manager) AddTask(task *types.Task) error {
 	testManager := m.Clone()
 
 	// Perform the addition in the test manager
-	testManager.tasks[task.ID] = task
+	testManager.nodes[task.ID] = task
 
 	// Check for cycles in the test manager
 	if err := testManager.DetectCycles(); err != nil {
-		m.logger.Error("Task addition would introduce cycle",
+		m.logger.Error("Node addition would introduce cycle",
 			zap.String("task_id", task.ID),
 			zap.Error(err),
 		)
@@ -64,24 +64,24 @@ func (m *Manager) AddTask(task *types.Task) error {
 	}
 
 	// If no cycles detected, commit the addition to the original manager
-	m.tasks[task.ID] = task
-	m.logger.Debug("Task added to internal storage", zap.String("task_id", task.ID))
+	m.nodes[task.ID] = task
+	m.logger.Debug("Node added to internal storage", zap.String("task_id", task.ID))
 
 	// Update tag cache with the new task
 	m.PopulateTagCache()
-	m.logger.Info("Task added successfully",
+	m.logger.Info("Node added successfully",
 		zap.String("task_id", task.ID),
 		zap.String("task_name", task.Name),
-		zap.Int("total_tasks", len(m.tasks)),
+		zap.Int("total_nodes", len(m.nodes)),
 	)
 
 	return nil
 }
 
-// UpdateTask updates an existing task in the manager.
+// UpdateNode updates an existing task in the manager.
 // It uses a clone-validate-commit pattern to ensure the update doesn't introduce cycles,
 // and automatically refreshes all task pointers to prevent stale references.
-func (m *Manager) UpdateTask(task *types.Task) error {
+func (m *Manager) UpdateNode(task *types.Node) error {
 	m.logger.Debug("Updating task")
 
 	if task == nil {
@@ -92,8 +92,8 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 		m.logger.Error("Attempted to update task with empty ID")
 		return fmt.Errorf("task ID cannot be empty")
 	}
-	if _, exists := m.tasks[task.ID]; !exists {
-		m.logger.Warn("Task not found for update", zap.String("task_id", task.ID))
+	if _, exists := m.nodes[task.ID]; !exists {
+		m.logger.Warn("Node not found for update", zap.String("task_id", task.ID))
 		return fmt.Errorf("task with ID %s not found", task.ID)
 	}
 
@@ -103,11 +103,11 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 	testManager := m.Clone()
 
 	// Perform the update in the test manager
-	testManager.tasks[task.ID] = task
+	testManager.nodes[task.ID] = task
 
 	// Check for cycles in the test manager
 	if err := testManager.DetectCycles(); err != nil {
-		m.logger.Error("Task update would introduce cycle",
+		m.logger.Error("Node update would introduce cycle",
 			zap.String("task_id", task.ID),
 			zap.Error(err),
 		)
@@ -115,20 +115,20 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 	}
 
 	// If no cycles detected, commit the update to the original manager
-	m.tasks[task.ID] = task
-	m.logger.Debug("Task updated in internal storage", zap.String("task_id", task.ID))
+	m.nodes[task.ID] = task
+	m.logger.Debug("Node updated in internal storage", zap.String("task_id", task.ID))
 
 	// Resolve all task pointers to fix stale references
-	// This ensures that any tasks pointing to the updated task get fresh pointers
+	// This ensures that any nodes pointing to the updated task get fresh pointers
 	m.logger.Debug("Resolving task pointers after update")
-	if err := m.ResolveTaskPointers(); err != nil {
+	if err := m.ResolveNodePointers(); err != nil {
 		m.logger.Error("Failed to resolve task pointers", zap.Error(err))
 		return err
 	}
 
 	// Update tag cache since tags may have changed
 	m.PopulateTagCache()
-	m.logger.Info("Task updated successfully",
+	m.logger.Info("Node updated successfully",
 		zap.String("task_id", task.ID),
 		zap.String("task_name", task.Name),
 	)
@@ -136,68 +136,77 @@ func (m *Manager) UpdateTask(task *types.Task) error {
 	return nil
 }
 
-// DeleteTask removes a task from the manager and cleans up all references to it
-// from other tasks' prerequisite and downstream lists.
-func (m *Manager) DeleteTask(id string) error {
+// DeleteNode removes a task from the manager and cleans up all references to it
+// from other nodes' edge lists.
+func (m *Manager) DeleteNode(id string) error {
 	m.logger.Debug("Deleting task", zap.String("task_id", id))
 
 	if id == "" {
 		m.logger.Error("Attempted to delete task with empty ID")
 		return fmt.Errorf("task ID cannot be empty")
 	}
-	if _, exists := m.tasks[id]; !exists {
-		m.logger.Warn("Task not found for deletion", zap.String("task_id", id))
+	if _, exists := m.nodes[id]; !exists {
+		m.logger.Warn("Node not found for deletion", zap.String("task_id", id))
 		return fmt.Errorf("task with ID %s not found", id)
 	}
 
-	m.logger.Debug("Removing task references from other tasks", zap.String("task_id", id))
-
-	// Remove references to this task from all other tasks
-	referencesRemoved := 0
-	for _, task := range m.tasks {
-		if task.ID == id {
-			continue // Skip the task being deleted
-		}
-
-		// Remove from PrerequisiteIDs
-		task.PrerequisiteIDs = removeStringFromSlice(task.PrerequisiteIDs, id)
-		// Remove from Prerequisites pointers if populated
-		if task.Prerequisites != nil {
-			task.Prerequisites = removeTaskFromSlice(task.Prerequisites, id)
-		}
-
-		// Remove from DownstreamRequiredIDs
-		task.DownstreamRequiredIDs = removeStringFromSlice(task.DownstreamRequiredIDs, id)
-		// Remove from DownstreamRequired pointers if populated
-		if task.DownstreamRequired != nil {
-			task.DownstreamRequired = removeTaskFromSlice(task.DownstreamRequired, id)
-		}
-
-		// Remove from DownstreamSuggestedIDs
-		task.DownstreamSuggestedIDs = removeStringFromSlice(task.DownstreamSuggestedIDs, id)
-		// Remove from DownstreamSuggested pointers if populated
-		if task.DownstreamSuggested != nil {
-			task.DownstreamSuggested = removeTaskFromSlice(task.DownstreamSuggested, id)
-			referencesRemoved++
-		}
-	}
-
-	m.logger.Debug("Removed references from other tasks",
-		zap.String("task_id", id),
-		zap.Int("references_cleaned", referencesRemoved),
-	)
-
-	// Delete the task itself
-	delete(m.tasks, id)
+	// Purge the node from the graph (removes all edges and the node itself)
+	m.purgeNode(id)
 
 	// Update tag cache since a task was removed
 	m.PopulateTagCache()
-	m.logger.Info("Task deleted successfully",
+	m.logger.Info("Node deleted successfully",
 		zap.String("task_id", id),
-		zap.Int("remaining_tasks", len(m.tasks)),
+		zap.Int("remaining_nodes", len(m.nodes)),
 	)
 
 	return nil
+}
+
+// purgeNode removes a node from the graph and cleans up all edges pointing to it.
+// This is an internal method used by DeleteNode and other operations.
+// It does NOT validate that the node exists - caller must check.
+func (m *Manager) purgeNode(id string) {
+	m.logger.Debug("Purging node from graph", zap.String("node_id", id))
+
+	// Track how many edges were cleaned up
+	edgesRemoved := 0
+
+	// Remove all edges pointing to this node from other nodes
+	for _, node := range m.nodes {
+		if node.ID == id {
+			continue // Skip the node being deleted
+		}
+
+		// Iterate through all edge types in this node
+		if node.EdgeIDs != nil {
+			for relationshipName, targetIDs := range node.EdgeIDs {
+				// Remove the deleted node's ID from this edge list
+				cleaned := removeStringFromSlice(targetIDs, id)
+
+				// Update if we removed anything
+				if len(cleaned) != len(targetIDs) {
+					node.EdgeIDs[relationshipName] = cleaned
+					edgesRemoved++
+
+					// Also clean up the resolved Edges map if it exists
+					if node.Edges != nil {
+						node.Edges[relationshipName] = removeEdgeByNodeID(node.Edges[relationshipName], id)
+					}
+				}
+			}
+		}
+	}
+
+	m.logger.Debug("Removed edges pointing to node",
+		zap.String("node_id", id),
+		zap.Int("edges_removed", edgesRemoved),
+	)
+
+	// Delete the node itself from the graph
+	delete(m.nodes, id)
+
+	m.logger.Debug("Node purged from graph", zap.String("node_id", id))
 }
 
 // removeStringFromSlice removes all occurrences of a string from a slice
@@ -220,42 +229,42 @@ func removeStringFromSlice(slice []string, value string) []string {
 	return result
 }
 
-// removeTaskFromSlice removes all tasks with the given ID from a task slice
-func removeTaskFromSlice(slice []*types.Task, id string) []*types.Task {
-	if slice == nil {
+// removeEdgeByNodeID removes all edges whose To node has the given ID
+func removeEdgeByNodeID(edges []types.Edge, nodeID string) []types.Edge {
+	if edges == nil {
 		return nil
 	}
 
-	result := make([]*types.Task, 0, len(slice))
-	for _, task := range slice {
-		if task != nil && task.ID != id {
-			result = append(result, task)
+	result := make([]types.Edge, 0, len(edges))
+	for _, edge := range edges {
+		if edge.To != nil && edge.To.ID != nodeID {
+			result = append(result, edge)
 		}
 	}
 
 	// Return nil if the result is empty to maintain nil vs empty slice distinction
-	if len(result) == 0 && slice != nil {
-		return []*types.Task{}
+	if len(result) == 0 && edges != nil {
+		return []types.Edge{}
 	}
 	return result
 }
 
-// ListAllTasks returns all tasks in the manager
-func (m *Manager) ListAllTasks() []*types.Task {
-	tasks := make([]*types.Task, 0, len(m.tasks))
-	for _, task := range m.tasks {
-		tasks = append(tasks, task)
+// ListAllNodes returns all nodes in the manager
+func (m *Manager) ListAllNodes() []*types.Node {
+	nodes := make([]*types.Node, 0, len(m.nodes))
+	for _, task := range m.nodes {
+		nodes = append(nodes, task)
 	}
-	return tasks
+	return nodes
 }
 
-// GetTask retrieves a task by ID
-func (m *Manager) GetTask(id string) (*types.Task, error) {
+// GetNode retrieves a task by ID
+func (m *Manager) GetNode(id string) (*types.Node, error) {
 	if id == "" {
 		return nil, fmt.Errorf("task ID cannot be empty")
 	}
 
-	task, exists := m.tasks[id]
+	task, exists := m.nodes[id]
 	if !exists {
 		return nil, fmt.Errorf("task with ID %s not found", id)
 	}
@@ -263,13 +272,13 @@ func (m *Manager) GetTask(id string) (*types.Task, error) {
 	return task, nil
 }
 
-// getTasks retrieves multiple tasks by their IDs
-func (m *Manager) getTasks(ids []string) ([]*types.Task, error) {
+// getNodes retrieves multiple nodes by their IDs
+func (m *Manager) getNodes(ids []string) ([]*types.Node, error) {
 	if len(ids) == 0 {
-		return []*types.Task{}, nil
+		return []*types.Node{}, nil
 	}
 
-	tasks := make([]*types.Task, 0, len(ids))
+	nodes := make([]*types.Node, 0, len(ids))
 	var notFound []string
 
 	for _, id := range ids {
@@ -277,87 +286,100 @@ func (m *Manager) getTasks(ids []string) ([]*types.Task, error) {
 			return nil, fmt.Errorf("task ID cannot be empty")
 		}
 
-		task, exists := m.tasks[id]
+		task, exists := m.nodes[id]
 		if !exists {
 			notFound = append(notFound, id)
 			continue
 		}
 
-		tasks = append(tasks, task)
+		nodes = append(nodes, task)
 	}
 
 	if len(notFound) > 0 {
-		return tasks, fmt.Errorf("tasks not found: %v", notFound)
+		return nodes, fmt.Errorf("nodes not found: %v", notFound)
 	}
 
-	return tasks, nil
+	return nodes, nil
 }
 
-// ResolveTaskPointers populates the task pointer fields (Prerequisites, DownstreamRequired,
-// DownstreamSuggested) by looking up the corresponding IDs for all tasks in the manager.
-// Should be called after loading tasks from disk to restore the pointer relationships.
-// Returns an error if any referenced task IDs cannot be found.
-func (m *Manager) ResolveTaskPointers() error {
-	for _, task := range m.tasks {
-		// Resolve prerequisites
-		if len(task.PrerequisiteIDs) > 0 {
-			prereqs, err := m.getTasks(task.PrerequisiteIDs)
-			if err != nil {
-				return fmt.Errorf("failed to resolve prerequisites for task %s: %w", task.ID, err)
-			}
-			task.Prerequisites = prereqs
+// ResolveNodePointers populates the Edges map for all nodes by looking up the
+// corresponding IDs in EdgeIDs and creating Edge objects with resolved pointers.
+// Should be called after loading nodes from disk to restore the pointer relationships.
+// Returns an error if any referenced node IDs cannot be found.
+func (m *Manager) ResolveNodePointers() error {
+	m.logger.Debug("Resolving node pointers for all nodes", zap.Int("node_count", len(m.nodes)))
+
+	for _, node := range m.nodes {
+		if node.EdgeIDs == nil {
+			continue
 		}
 
-		// Resolve downstream required
-		if len(task.DownstreamRequiredIDs) > 0 {
-			downstream, err := m.getTasks(task.DownstreamRequiredIDs)
-			if err != nil {
-				return fmt.Errorf("failed to resolve downstream required for task %s: %w", task.ID, err)
-			}
-			task.DownstreamRequired = downstream
+		// Initialize Edges map if needed
+		if node.Edges == nil {
+			node.Edges = make(map[string][]types.Edge)
 		}
 
-		// Resolve downstream suggested
-		if len(task.DownstreamSuggestedIDs) > 0 {
-			suggested, err := m.getTasks(task.DownstreamSuggestedIDs)
-			if err != nil {
-				return fmt.Errorf("failed to resolve downstream suggested for task %s: %w", task.ID, err)
+		// Iterate through all relationship types in this node
+		for relationshipName, targetIDs := range node.EdgeIDs {
+			if len(targetIDs) == 0 {
+				continue
 			}
-			task.DownstreamSuggested = suggested
+
+			// Look up the target nodes
+			targetNodes, err := m.getNodes(targetIDs)
+			if err != nil {
+				return fmt.Errorf("failed to resolve %s for node %s: %w", relationshipName, node.ID, err)
+			}
+
+			// Create Edge objects for each target
+			edges := make([]types.Edge, len(targetNodes))
+			for i, targetNode := range targetNodes {
+				edges[i] = types.Edge{
+					To: targetNode,
+					// TODO: Populate Type field with the Relationship object once we implement
+					// relationship configuration loading. For now, edges have resolved node
+					// pointers which is sufficient for graph traversal.
+					Type: nil,
+				}
+			}
+
+			// Store the resolved edges
+			node.Edges[relationshipName] = edges
 		}
 	}
 
+	m.logger.Debug("Node pointers resolved successfully")
 	return nil
 }
 
-// Clone creates a deep copy of the manager and all its tasks.
-// The cloned manager has independent tasks with resolved pointers.
+// Clone creates a deep copy of the manager and all its nodes.
+// The cloned manager has independent nodes with resolved pointers.
 // This is useful for making transactional changes that can be validated before committing.
 func (m *Manager) Clone() *Manager {
 	if m == nil {
 		return nil
 	}
 
-	m.logger.Debug("Cloning manager", zap.Int("task_count", len(m.tasks)))
+	m.logger.Debug("Cloning manager", zap.Int("task_count", len(m.nodes)))
 
 	// Create new manager with same logger
 	clone := &Manager{
-		tasks:    make(map[string]*types.Task),
-		tagCache: make(map[string][]*types.Task),
+		nodes:    make(map[string]*types.Node),
+		tagCache: make(map[string][]*types.Node),
 		logger:   m.logger,
 	}
 
-	// Clone all tasks
-	for id, task := range m.tasks {
-		clonedTask := task.Clone()
-		clone.tasks[id] = clonedTask
+	// Clone all nodes
+	for id, task := range m.nodes {
+		clonedNode := task.Clone()
+		clone.nodes[id] = clonedNode
 	}
 
 	// Resolve task pointers in the cloned manager
 	// Note: We ignore errors here because if the original manager was valid,
 	// the clone should also be valid. If there are resolution errors, they
 	// would have existed in the original manager too.
-	_ = clone.ResolveTaskPointers()
+	_ = clone.ResolveNodePointers()
 
 	// Clone tag cache (we'll just rebuild it)
 	clone.PopulateTagCache()
@@ -367,38 +389,41 @@ func (m *Manager) Clone() *Manager {
 	return clone
 }
 
-// DetectCycles checks all three DAGs (Prerequisites, Downstream Required, and Downstream Suggested)
-// for cycles. Returns an error if any cycles are detected, with detailed information about all cycles found.
+// DetectCycles checks all relationship types for cycles. Since all relationships form DAGs,
+// any cycle in any relationship type is invalid. Returns an error if any cycles are detected,
+// with detailed information about all cycles found.
 func (m *Manager) DetectCycles() error {
+	m.logger.Debug("Detecting cycles in graph")
+
 	var allCycles []string
 
-	// Check Prerequisites DAG for cycles
-	cycles := m.detectCyclesInDAG("prerequisites", func(task *types.Task) []string {
-		return task.PrerequisiteIDs
-	})
-	if len(cycles) > 0 {
-		for _, cycle := range cycles {
-			allCycles = append(allCycles, fmt.Sprintf("Prerequisites DAG: %s", cycle))
+	// Collect all unique relationship types across all nodes
+	relationshipTypes := make(map[string]bool)
+	for _, node := range m.nodes {
+		if node.EdgeIDs != nil {
+			for relationshipName := range node.EdgeIDs {
+				relationshipTypes[relationshipName] = true
+			}
 		}
 	}
 
-	// Check Downstream Required DAG for cycles
-	cycles = m.detectCyclesInDAG("downstream required", func(task *types.Task) []string {
-		return task.DownstreamRequiredIDs
-	})
-	if len(cycles) > 0 {
-		for _, cycle := range cycles {
-			allCycles = append(allCycles, fmt.Sprintf("Downstream Required DAG: %s", cycle))
-		}
-	}
+	m.logger.Debug("Checking relationship types for cycles",
+		zap.Int("relationship_count", len(relationshipTypes)))
 
-	// Check Downstream Suggested DAG for cycles
-	cycles = m.detectCyclesInDAG("downstream suggested", func(task *types.Task) []string {
-		return task.DownstreamSuggestedIDs
-	})
-	if len(cycles) > 0 {
-		for _, cycle := range cycles {
-			allCycles = append(allCycles, fmt.Sprintf("Downstream Suggested DAG: %s", cycle))
+	// Check each relationship type for cycles
+	for relationshipName := range relationshipTypes {
+		relName := relationshipName // Capture for closure
+		cycles := m.detectCyclesInDAG(relName, func(node *types.Node) []string {
+			if node.EdgeIDs == nil {
+				return nil
+			}
+			return node.EdgeIDs[relName]
+		})
+
+		if len(cycles) > 0 {
+			for _, cycle := range cycles {
+				allCycles = append(allCycles, fmt.Sprintf("%s: %s", relName, cycle))
+			}
 		}
 	}
 
@@ -407,6 +432,7 @@ func (m *Manager) DetectCycles() error {
 		for i, cycle := range allCycles {
 			msg += fmt.Sprintf("  %d. %s\n", i+1, cycle)
 		}
+		m.logger.Error("Cycles detected in graph", zap.Int("cycle_count", len(allCycles)))
 		return fmt.Errorf("%s", msg)
 	}
 
@@ -415,14 +441,14 @@ func (m *Manager) DetectCycles() error {
 
 // detectCyclesInDAG performs cycle detection on a specific DAG using DFS
 // Returns a slice of cycle descriptions (e.g., "task-a -> task-b -> task-c -> task-a")
-func (m *Manager) detectCyclesInDAG(dagName string, getEdges func(*types.Task) []string) []string {
+func (m *Manager) detectCyclesInDAG(dagName string, getEdges func(*types.Node) []string) []string {
 	visited := make(map[string]bool)
 	recStack := make(map[string]bool)
 	var cycles []string
 	path := []string{}
 
 	// Check each task as a potential starting point
-	for taskID := range m.tasks {
+	for taskID := range m.nodes {
 		if !visited[taskID] {
 			m.findCyclesDFS(taskID, visited, recStack, &path, &cycles, getEdges)
 		}
@@ -432,14 +458,14 @@ func (m *Manager) detectCyclesInDAG(dagName string, getEdges func(*types.Task) [
 }
 
 // findCyclesDFS performs depth-first search to find all cycles
-func (m *Manager) findCyclesDFS(taskID string, visited, recStack map[string]bool, path *[]string, cycles *[]string, getEdges func(*types.Task) []string) {
+func (m *Manager) findCyclesDFS(taskID string, visited, recStack map[string]bool, path *[]string, cycles *[]string, getEdges func(*types.Node) []string) {
 	// Mark current node as visited and add to recursion stack
 	visited[taskID] = true
 	recStack[taskID] = true
 	*path = append(*path, taskID)
 
 	// Get the task
-	task, exists := m.tasks[taskID]
+	task, exists := m.nodes[taskID]
 	if exists {
 		// Get edges for this task based on the DAG we're checking
 		edges := getEdges(task)
@@ -481,9 +507,9 @@ func (m *Manager) findCyclesDFS(taskID string, visited, recStack map[string]bool
 	*path = (*path)[:len(*path)-1]
 }
 
-// LoadFromDir reads all YAML files from the specified directory and loads tasks
+// LoadFromDir reads all YAML files from the specified directory and loads nodes
 func (m *Manager) LoadFromDir(dirPath string) error {
-	m.logger.Info("Loading tasks from directory", zap.String("path", dirPath))
+	m.logger.Info("Loading nodes from directory", zap.String("path", dirPath))
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
@@ -500,7 +526,7 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 
 	m.logger.Debug("Found directory entries", zap.Int("count", len(entries)))
 
-	tasksLoaded := 0
+	nodesLoaded := 0
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
 			m.logger.Debug("Skipping non-YAML file", zap.String("filename", entry.Name()))
@@ -516,7 +542,7 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 			return fmt.Errorf("failed to read file %s: %w", entry.Name(), err)
 		}
 
-		var task types.Task
+		var task types.Node
 		if err := yaml.Unmarshal(data, &task); err != nil {
 			m.logger.Error("Failed to unmarshal task",
 				zap.String("filename", entry.Name()),
@@ -525,8 +551,8 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 			return fmt.Errorf("failed to unmarshal task from %s: %w", entry.Name(), err)
 		}
 
-		m.tasks[task.ID] = &task
-		tasksLoaded++
+		m.nodes[task.ID] = &task
+		nodesLoaded++
 		m.logger.Debug("Loaded task from file",
 			zap.String("task_id", task.ID),
 			zap.String("task_name", task.Name),
@@ -534,7 +560,7 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 		)
 	}
 
-	m.logger.Info("Finished loading task files", zap.Int("tasks_loaded", tasksLoaded))
+	m.logger.Info("Finished loading task files", zap.Int("nodes_loaded", nodesLoaded))
 
 	// Detect cycles before resolving pointers
 	m.logger.Debug("Detecting cycles in task graph")
@@ -544,31 +570,31 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 	}
 	m.logger.Debug("No cycles detected")
 
-	// Resolve task pointers after loading all tasks and validating no cycles
+	// Resolve task pointers after loading all nodes and validating no cycles
 	m.logger.Debug("Resolving task pointers")
-	if err := m.ResolveTaskPointers(); err != nil {
+	if err := m.ResolveNodePointers(); err != nil {
 		m.logger.Error("Failed to resolve task pointers", zap.Error(err))
 		return err
 	}
-	m.logger.Debug("Task pointers resolved")
+	m.logger.Debug("Node pointers resolved")
 
 	// Populate tag cache for efficient tag-based lookups
 	m.logger.Debug("Populating tag cache")
 	m.PopulateTagCache()
 
-	m.logger.Info("Successfully loaded tasks from directory",
+	m.logger.Info("Successfully loaded nodes from directory",
 		zap.String("path", dirPath),
-		zap.Int("total_tasks", len(m.tasks)),
+		zap.Int("total_nodes", len(m.nodes)),
 	)
 
 	return nil
 }
 
-// PersistToDir writes all tasks to the specified directory as YAML files
+// PersistToDir writes all nodes to the specified directory as YAML files
 func (m *Manager) PersistToDir(dirPath string) error {
-	m.logger.Info("Persisting tasks to directory",
+	m.logger.Info("Persisting nodes to directory",
 		zap.String("path", dirPath),
-		zap.Int("task_count", len(m.tasks)),
+		zap.Int("task_count", len(m.nodes)),
 	)
 
 	// Create directory if it doesn't exist
@@ -578,8 +604,8 @@ func (m *Manager) PersistToDir(dirPath string) error {
 	}
 
 	// Write each task as a separate YAML file
-	tasksPersisted := 0
-	for id, task := range m.tasks {
+	nodesPersisted := 0
+	for id, task := range m.nodes {
 		filename := filepath.Join(dirPath, fmt.Sprintf("%s.yaml", id))
 
 		m.logger.Debug("Marshaling task", zap.String("task_id", id))
@@ -599,12 +625,12 @@ func (m *Manager) PersistToDir(dirPath string) error {
 			return fmt.Errorf("failed to write task %s: %w", id, err)
 		}
 
-		tasksPersisted++
+		nodesPersisted++
 	}
 
-	m.logger.Info("Successfully persisted tasks to directory",
+	m.logger.Info("Successfully persisted nodes to directory",
 		zap.String("path", dirPath),
-		zap.Int("tasks_persisted", tasksPersisted),
+		zap.Int("nodes_persisted", nodesPersisted),
 	)
 
 	return nil

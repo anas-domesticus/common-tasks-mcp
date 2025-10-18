@@ -13,7 +13,7 @@ func (m *Manager) PopulateTagCache() {
 	m.tagCache = make(map[string][]*types.Node)
 
 	// Iterate through all tasks and populate cache
-	for _, task := range m.tasks {
+	for _, task := range m.nodes {
 		for _, tag := range task.Tags {
 			m.tagCache[tag] = append(m.tagCache[tag], task)
 		}
