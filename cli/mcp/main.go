@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"common-tasks-mcp/mcp/server"
@@ -56,34 +55,6 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Common Tasks MCP Server v0.1.0")
-	},
-}
-
-var promptCmd = &cobra.Command{
-	Use:   "prompt [name]",
-	Short: "Output a prompt from the data directory",
-	Long: `Output a prompt that can be used with Claude Code or other AI assistants.
-
-Prompts are loaded from the prompts/ directory in your data directory.
-Available prompts depend on what files exist in that directory.
-
-Common prompts:
-- generate-initial-tasks: Generate initial task set for a codebase
-- capture-workflow: Capture workflows during active development`,
-	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		promptName := args[0]
-
-		// Load prompt from data directory
-		promptPath := filepath.Join(directory, "prompts", promptName+".md")
-		content, err := os.ReadFile(promptPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Could not read prompt '%s' from %s: %v\n", promptName, promptPath, err)
-			fmt.Fprintf(os.Stderr, "\nMake sure the prompt file exists in the prompts/ directory.\n")
-			os.Exit(1)
-		}
-
-		fmt.Print(string(content))
 	},
 }
 
@@ -252,5 +223,4 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(serveCmd)
-	rootCmd.AddCommand(promptCmd)
 }

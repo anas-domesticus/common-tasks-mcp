@@ -15,6 +15,10 @@ This is a **generic, reusable DAG framework** that exposes graph operations thro
 
 The system breaks down knowledge silos by providing AI assistants with structured, queryable knowledge graphs. Whether it's institutional knowledge about development workflows, service dependencies, recipe relationships, or learning paths—the same framework adapts to your domain.
 
+> **⚠️ Active Development Notice**
+>
+> This project is under active development. The API, configuration schema, and implementation details are subject to change as the design evolves. While the core concepts (DAG management, configuration-driven domain modeling) are stable, specific interfaces and file formats may change in future releases.
+
 ## Motivation
 
 AI assistants and agentic workflows increasingly need domain-specific knowledge to function effectively. However, traditional approaches—dumping large documentation files into prompts or expecting AI to parse scattered tribal knowledge—are inefficient and hit context window limits quickly. Modern AI systems work best with **small, targeted pieces of information** delivered precisely when needed.
@@ -259,9 +263,10 @@ Configuration can be provided via YAML file or environment variables:
 **Config file (config.yaml):**
 ```yaml
 transport: stdio
-http_port: 8080
+httpPort: 8080
 directory: ./data
 verbose: false
+readOnly: false
 ```
 
 **Environment Variables:**
@@ -269,6 +274,7 @@ verbose: false
 - `MCP_HTTP_PORT`: HTTP port number
 - `MCP_DIRECTORY`: Data directory path
 - `MCP_VERBOSE`: Enable verbose logging (true/false)
+- `MCP_READ_ONLY`: Enable read-only mode (true/false)
 
 ## Usage
 
@@ -290,6 +296,7 @@ mcp serve --transport http --port 8080 --directory ./data
 - `--transport, -t`: Transport mode: stdio or http (default: "stdio")
 - `--port, -p`: HTTP port when using http transport (default: 8080)
 - `--verbose, -v`: Enable verbose logging
+- `--read-only, -r`: Enable read-only mode (suppresses write tools)
 - `--config, -c`: Path to YAML config file
 
 ### MCP Tools (Auto-Generated)
@@ -298,6 +305,7 @@ The server dynamically generates tools based on your `mcp.yaml` configuration:
 
 - **list_[plural]**: List all nodes or filter by tags
 - **get_[singular]**: Get a specific node by ID with full relationship details
+- **list_tags**: Get all unique tags with usage counts
 - **add_[singular]**: Create a new node with relationships
 - **update_[singular]**: Update an existing node
 - **delete_[singular]**: Delete a node and clean up all references
@@ -306,16 +314,14 @@ The server dynamically generates tools based on your `mcp.yaml` configuration:
 
 ### MCP Prompts
 
-The server may include domain-specific prompts (check the `mcp/server/prompts/` directory):
+The server may include domain-specific prompts (check the `prompts/` directory in your data directory):
 
 - **generate-initial-[plural]**: Prompt for generating initial graph content
 - **capture-workflow**: Prompt for capturing workflows during active use
 
-Access prompts via CLI:
-```bash
-mcp prompt generate-initial-tasks
-mcp prompt capture-workflow
-```
+When prompts are available, the server also registers:
+- **list_prompts**: Get all available prompts with descriptions
+- **get_prompt**: Retrieve the full content of a specific prompt
 
 ### Node Structure
 
@@ -344,113 +350,11 @@ updated_at: 2024-01-15T10:30:00Z
 
 **Note**: The `edges` key contains all relationship types. Only the IDs are persisted—pointers are resolved at runtime.
 
-## Architecture
-
-### Core Components
-
-- **`pkg/graph_manager/`**: Generic DAG operations (no domain knowledge)
-  - Cycle detection across multiple relationship types
-  - Node persistence and pointer resolution
-  - Tag-based indexing
-  - Safe mutation with clone-validate-commit pattern
-
-- **`pkg/graph_manager/types/`**: Core data structures
-  - `Node`: Generic graph vertex with arbitrary edge types
-  - `Edge`: Directed connection with relationship type
-  - `Relationship`: Metadata about edge categories
-  - `RelationshipDirection`: Temporal flow enumeration
-
-- **`mcp/server/`**: Configuration-driven MCP layer
-  - Dynamic tool generation from `mcp.yaml`
-  - Relationship loading from `relationships.yaml`
-  - Transport abstraction (stdio/HTTP)
-
-### Two-Level Edge Storage
-
-**EdgeIDs** (Persisted):
-```yaml
-edges:
-  prerequisites: ["node-a", "node-b"]
-```
-- Simple string IDs
-- Stored in YAML/JSON
-- Source of truth on disk
-
-**Edges** (Runtime):
-```go
-Edges: map[string][]Edge{
-  "prerequisites": {
-    {To: *Node, Type: *Relationship},
-    {To: *Node, Type: *Relationship},
-  },
-}
-```
-- Resolved pointers to full objects
-- Computed after loading from disk
-- Not persisted (avoids circular references)
-
-### Multiple Independent DAGs
-
-Each relationship type forms its own DAG:
-```
-Prerequisites DAG: A → B → C
-Next Steps DAG:    C → D → E
-Related DAG:       A ↔ D (no ordering)
-```
-
-All three share the same nodes but have independent edge structures. Each is validated separately for cycles.
-
-## Development
-
-### Project Structure
-
-```
-.
-├── cli/mcp/                 # CLI binary
-├── pkg/
-│   ├── graph_manager/       # Generic DAG operations
-│   │   └── types/           # Core data structures
-│   ├── config/              # Configuration loading
-│   └── logger/              # Logging setup
-├── mcp/server/              # MCP server implementation
-│   └── prompts/             # Embedded prompt templates
-└── .tasks/                  # Example data directory
-    ├── mcp.yaml             # Domain configuration
-    ├── relationships.yaml   # Relationship definitions
-    └── nodes/               # Node storage (YAML files)
-```
-
-### Testing
-
-```bash
-# Run all tests
-go test ./...
-
-# Run with coverage
-go test -cover ./...
-
-# Test specific package
-go test ./pkg/graph_manager/...
-```
-
-### Building
-
-```bash
-# Build the CLI
-go build -o mcp ./cli/mcp
-
-# Install globally
-go install ./cli/mcp
-```
-
-## Requirements
-
-- Go 1.21 or higher
-- Docker (optional, for containerized deployment)
-
 ## Contributing
 
 Contributions welcome! This is a generic framework—if you build an interesting domain configuration, consider sharing it as an example.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture details, and guidelines.
 
 ## License
 
