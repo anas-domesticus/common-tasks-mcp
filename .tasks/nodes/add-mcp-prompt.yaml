@@ -2,25 +2,41 @@ id: add-mcp-prompt
 name: Add New MCP Prompt
 summary: Add a new prompt to the MCP server
 description: |-
-    Adds a new MCP prompt that clients can invoke. Follow these steps:
+    Adds a new MCP prompt that clients can invoke. Prompts are loaded dynamically
+    from the data directory's `prompts/` subdirectory.
 
-    1. Create prompt markdown file in `mcp/server/prompts/`
-    2. Add `//go:embed` directive in `mcp/server/server.go`
-    3. Register prompt in `registerPrompts()` function
-    4. Create handler function `handle[PromptName]Prompt()`
-    5. Update `README.md` to document the new prompt
+    Steps:
+    1. Create a markdown file (.md) in the data directory's `prompts/` folder
+    2. Add YAML frontmatter with metadata (name, description, arguments)
+    3. Write the prompt content in markdown after the frontmatter
+    4. Optionally update documentation if this is an example prompt
 
-    Files to modify:
-    - `mcp/server/prompts/` - new prompt file
-    - `mcp/server/server.go` - registration and handler
-    - `README.md` - documentation
+    The server automatically loads all .md files from `prompts/` at startup.
+    No code changes needed - prompts are configuration-driven.
+
+    Example structure:
+    ```yaml
+    ---
+    name: example-prompt
+    description: Brief description of what this prompt does
+    arguments:
+      - name: arg1
+        description: Description of argument
+        required: true
+    ---
+    Your prompt content here...
+    ```
+
+    Files to create/modify:
+    - `<data-directory>/prompts/your-prompt.md` - new prompt file
+    - `README.md` or example docs - documentation (if applicable)
 tags:
     - mcp
-    - go
+    - documentation
+    - configuration
 edges:
     downstream_required: []
     downstream_suggested:
-        - run-unit-tests
         - update-main-readme
     prerequisites: []
 created_at: 2025-10-17T22:35:56.405370951Z
