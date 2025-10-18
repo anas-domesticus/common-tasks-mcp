@@ -13,18 +13,20 @@ import (
 
 // Manager handles node graph operations
 type Manager struct {
-	nodes    map[string]*types.Node
-	tagCache map[string][]*types.Node
-	logger   *zap.Logger
+	nodes             map[string]*types.Node
+	relationshipTypes map[string]*types.Relationship
+	tagCache          map[string][]*types.Node
+	logger            *zap.Logger
 }
 
-// NewManager creates a new node manager instance
+// NewManager creates a new node manager instance with empty relationship registry
 func NewManager(logger *zap.Logger) *Manager {
 	logger.Debug("Creating new node manager")
 	return &Manager{
-		nodes:    make(map[string]*types.Node),
-		tagCache: make(map[string][]*types.Node),
-		logger:   logger,
+		nodes:             make(map[string]*types.Node),
+		relationshipTypes: make(map[string]*types.Relationship),
+		tagCache:          make(map[string][]*types.Node),
+		logger:            logger,
 	}
 }
 
@@ -331,15 +333,15 @@ func (m *Manager) ResolveNodePointers() error {
 				return fmt.Errorf("failed to resolve %s for node %s: %w", relationshipName, node.ID, err)
 			}
 
+			// Look up the relationship type (may be nil if not registered)
+			relationship := m.GetRelationship(relationshipName)
+
 			// Create Edge objects for each target
 			edges := make([]types.Edge, len(targetNodes))
 			for i, targetNode := range targetNodes {
 				edges[i] = types.Edge{
-					To: targetNode,
-					// TODO: Populate Type field with the Relationship object once we implement
-					// relationship configuration loading. For now, edges have resolved node
-					// pointers which is sufficient for graph traversal.
-					Type: nil,
+					To:   targetNode,
+					Type: relationship,
 				}
 			}
 
@@ -507,8 +509,8 @@ func (m *Manager) findCyclesDFS(nodeID string, visited, recStack map[string]bool
 	*path = (*path)[:len(*path)-1]
 }
 
-// LoadFromDir reads all YAML files from the specified directory and loads nodes
-func (m *Manager) LoadFromDir(dirPath string) error {
+// LoadNodesFromDir reads all YAML files from the specified directory and loads nodes
+func (m *Manager) LoadNodesFromDir(dirPath string) error {
 	m.logger.Info("Loading nodes from directory", zap.String("path", dirPath))
 
 	// Create directory if it doesn't exist

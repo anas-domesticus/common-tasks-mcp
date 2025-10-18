@@ -83,8 +83,8 @@ func TestPersistAndLoad(t *testing.T) {
 	// Create a new manager and load tasks
 	log2, _ := logger.New(false)
 	manager2 := NewManager(log2)
-	if err := manager2.LoadFromDir(testDir); err != nil {
-		t.Fatalf("Failed to load tasks: %v", err)
+	if err := manager2.LoadNodesFromDir(testDir); err != nil {
+		t.Fatalf("Failed to load nodes: %v", err)
 	}
 
 	// Compare the managers
@@ -764,5 +764,165 @@ func TestResolveNodePointers(t *testing.T) {
 	err = manager.ResolveNodePointers()
 	if err == nil {
 		t.Error("Expected error when resolving pointer to non-existent node")
+	}
+}
+
+func TestResolveNodePointersWithRelationshipTypes(t *testing.T) {
+	log, _ := logger.New(false)
+	manager := NewManager(log)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Register relationship types
+	prereqRel := types.Relationship{
+		Name:        "prerequisites",
+		Description: "Tasks that must complete before this one",
+		Direction:   types.DirectionBackward,
+	}
+	downstreamRel := types.Relationship{
+		Name:        "downstream_required",
+		Description: "Tasks that must complete after this one",
+		Direction:   types.DirectionForward,
+	}
+
+	if err := manager.RegisterRelationship(prereqRel); err != nil {
+		t.Fatalf("Failed to register prerequisites relationship: %v", err)
+	}
+	if err := manager.RegisterRelationship(downstreamRel); err != nil {
+		t.Fatalf("Failed to register downstream_required relationship: %v", err)
+	}
+
+	// Create nodes with EdgeIDs
+	nodeA := &types.Node{
+		ID:        "task-a",
+		Name:      "Task A",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	nodeB := &types.Node{
+		ID:   "task-b",
+		Name: "Task B",
+		EdgeIDs: map[string][]string{
+			"prerequisites":       {"task-a"},
+			"downstream_required": {"task-c"},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	nodeC := &types.Node{
+		ID:        "task-c",
+		Name:      "Task C",
+		EdgeIDs:   map[string][]string{"prerequisites": {"task-b"}},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	manager.nodes["task-a"] = nodeA
+	manager.nodes["task-b"] = nodeB
+	manager.nodes["task-c"] = nodeC
+
+	// Resolve pointers
+	err := manager.ResolveNodePointers()
+	if err != nil {
+		t.Fatalf("Failed to resolve node pointers: %v", err)
+	}
+
+	// Verify nodeB has resolved edges with Type populated
+	if nodeB.Edges == nil {
+		t.Fatal("nodeB.Edges should be initialized")
+	}
+
+	// Check prerequisites edges
+	prereqs, ok := nodeB.Edges["prerequisites"]
+	if !ok {
+		t.Fatal("nodeB should have prerequisites edges")
+	}
+	if len(prereqs) != 1 {
+		t.Fatalf("nodeB should have 1 prerequisite, got %d", len(prereqs))
+	}
+	if prereqs[0].To != nodeA {
+		t.Error("nodeB's prerequisite should point to nodeA")
+	}
+	// Verify Type field is populated
+	if prereqs[0].Type == nil {
+		t.Error("Edge.Type should be populated for prerequisites")
+	} else {
+		if prereqs[0].Type.Name != "prerequisites" {
+			t.Errorf("Expected relationship name 'prerequisites', got '%s'", prereqs[0].Type.Name)
+		}
+		if prereqs[0].Type.Direction != types.DirectionBackward {
+			t.Errorf("Expected direction backward, got %s", prereqs[0].Type.Direction)
+		}
+	}
+
+	// Check downstream_required edges
+	downstream, ok := nodeB.Edges["downstream_required"]
+	if !ok {
+		t.Fatal("nodeB should have downstream_required edges")
+	}
+	if len(downstream) != 1 {
+		t.Fatalf("nodeB should have 1 downstream task, got %d", len(downstream))
+	}
+	if downstream[0].To != nodeC {
+		t.Error("nodeB's downstream should point to nodeC")
+	}
+	// Verify Type field is populated
+	if downstream[0].Type == nil {
+		t.Error("Edge.Type should be populated for downstream_required")
+	} else {
+		if downstream[0].Type.Name != "downstream_required" {
+			t.Errorf("Expected relationship name 'downstream_required', got '%s'", downstream[0].Type.Name)
+		}
+		if downstream[0].Type.Direction != types.DirectionForward {
+			t.Errorf("Expected direction forward, got %s", downstream[0].Type.Direction)
+		}
+	}
+}
+
+func TestResolveNodePointersWithUnregisteredRelationship(t *testing.T) {
+	log, _ := logger.New(false)
+	manager := NewManager(log)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Create nodes with EdgeIDs but DON'T register the relationship type
+	nodeA := &types.Node{
+		ID:        "task-a",
+		Name:      "Task A",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	nodeB := &types.Node{
+		ID:        "task-b",
+		Name:      "Task B",
+		EdgeIDs:   map[string][]string{"unregistered": {"task-a"}},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	manager.nodes["task-a"] = nodeA
+	manager.nodes["task-b"] = nodeB
+
+	// Resolve pointers should still work
+	err := manager.ResolveNodePointers()
+	if err != nil {
+		t.Fatalf("ResolveNodePointers should work even with unregistered relationships: %v", err)
+	}
+
+	// Verify edges are created but Type is nil
+	edges, ok := nodeB.Edges["unregistered"]
+	if !ok {
+		t.Fatal("nodeB should have unregistered edges")
+	}
+	if len(edges) != 1 {
+		t.Fatalf("Expected 1 edge, got %d", len(edges))
+	}
+	if edges[0].To != nodeA {
+		t.Error("Edge should point to nodeA")
+	}
+	// Type should be nil for unregistered relationship
+	if edges[0].Type != nil {
+		t.Error("Edge.Type should be nil for unregistered relationship")
 	}
 }
