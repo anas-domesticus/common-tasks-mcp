@@ -25,16 +25,46 @@ func formatNodesAsMarkdown(nodes []*types.Node) string {
 func formatNodeAsMarkdown(node *types.Node, tm *graph_manager.Manager) string {
 	var sb strings.Builder
 
-	// Get prerequisites from EdgeIDs
-	prereqIDs := node.GetEdgeIDs("prerequisites")
-	if len(prereqIDs) > 0 {
-		sb.WriteString("**Prerequisites:**\n\n")
-		for _, id := range prereqIDs {
-			prereq, err := tm.GetNode(id)
-			if err == nil {
-				sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, prereq.Description))
-			} else {
-				sb.WriteString(fmt.Sprintf("`%s` (not found)\n\n", id))
+	// Get all registered relationships from the manager
+	allRelationships := tm.GetAllRelationships()
+
+	// Group relationships by direction for this specific node
+	backwardRels := []string{}
+	forwardRels := []string{}
+	noneRels := []string{}
+
+	// Only include relationships that this node actually uses
+	for relName := range node.EdgeIDs {
+		rel, exists := allRelationships[relName]
+		if !exists {
+			// If relationship not registered, treat as DirectionNone
+			noneRels = append(noneRels, relName)
+			continue
+		}
+
+		switch rel.Direction {
+		case types.DirectionBackward:
+			backwardRels = append(backwardRels, relName)
+		case types.DirectionForward:
+			forwardRels = append(forwardRels, relName)
+		case types.DirectionNone:
+			noneRels = append(noneRels, relName)
+		}
+	}
+
+	// Display backward relationships first (things that come before)
+	for _, relName := range backwardRels {
+		rel := allRelationships[relName]
+		edgeIDs := node.GetEdgeIDs(relName)
+		if len(edgeIDs) > 0 {
+			sb.WriteString(fmt.Sprintf("**%s:**\n\n", capitalizeFirst(rel.Description)))
+			for _, id := range edgeIDs {
+				relatedNode, err := tm.GetNode(id)
+				if err == nil {
+					sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, relatedNode.Description))
+				} else {
+					sb.WriteString(fmt.Sprintf("`%s` (not found)\n\n", id))
+				}
 			}
 		}
 	}
@@ -42,33 +72,51 @@ func formatNodeAsMarkdown(node *types.Node, tm *graph_manager.Manager) string {
 	// Main node
 	sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", node.ID, node.Description))
 
-	// Required downstream
-	downstreamReqIDs := node.GetEdgeIDs("downstream_required")
-	if len(downstreamReqIDs) > 0 {
-		sb.WriteString("**Required next:**\n\n")
-		for _, id := range downstreamReqIDs {
-			next, err := tm.GetNode(id)
-			if err == nil {
-				sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, next.Description))
-			} else {
-				sb.WriteString(fmt.Sprintf("`%s` (not found)\n\n", id))
+	// Display forward relationships (things that come after)
+	for _, relName := range forwardRels {
+		rel := allRelationships[relName]
+		edgeIDs := node.GetEdgeIDs(relName)
+		if len(edgeIDs) > 0 {
+			sb.WriteString(fmt.Sprintf("**%s:**\n\n", capitalizeFirst(rel.Description)))
+			for _, id := range edgeIDs {
+				relatedNode, err := tm.GetNode(id)
+				if err == nil {
+					sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, relatedNode.Description))
+				} else {
+					sb.WriteString(fmt.Sprintf("`%s` (not found)\n\n", id))
+				}
 			}
 		}
 	}
 
-	// Suggested downstream
-	downstreamSugIDs := node.GetEdgeIDs("downstream_suggested")
-	if len(downstreamSugIDs) > 0 {
-		sb.WriteString("**Suggested next:**\n\n")
-		for _, id := range downstreamSugIDs {
-			next, err := tm.GetNode(id)
-			if err == nil {
-				sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, next.Description))
-			} else {
-				sb.WriteString(fmt.Sprintf("`%s` (not found)\n\n", id))
+	// Display relationships with no temporal direction
+	for _, relName := range noneRels {
+		edgeIDs := node.GetEdgeIDs(relName)
+		if len(edgeIDs) > 0 {
+			// Try to get description from registered relationship, otherwise use name
+			label := relName
+			if rel, exists := allRelationships[relName]; exists {
+				label = rel.Description
+			}
+			sb.WriteString(fmt.Sprintf("**%s:**\n\n", capitalizeFirst(label)))
+			for _, id := range edgeIDs {
+				relatedNode, err := tm.GetNode(id)
+				if err == nil {
+					sb.WriteString(fmt.Sprintf("`%s`\n\n%s\n\n", id, relatedNode.Description))
+				} else {
+					sb.WriteString(fmt.Sprintf("`%s` (not found)\n\n", id))
+				}
 			}
 		}
 	}
 
 	return strings.TrimSpace(sb.String())
+}
+
+// capitalizeFirst capitalizes the first letter of a string
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
