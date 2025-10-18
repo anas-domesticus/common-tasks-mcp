@@ -1,4 +1,4 @@
-package task_manager
+package graph_manager
 
 import (
 	"os"
@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"common-tasks-mcp/pkg/graph_manager/types"
 	"common-tasks-mcp/pkg/logger"
-	"common-tasks-mcp/pkg/task_manager/types"
 )
 
 func TestPersistAndLoad(t *testing.T) {

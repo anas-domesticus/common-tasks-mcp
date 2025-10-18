@@ -1,11 +1,11 @@
-package task_manager
+package graph_manager
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"common-tasks-mcp/pkg/task_manager/types"
+	"common-tasks-mcp/pkg/graph_manager/types"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"

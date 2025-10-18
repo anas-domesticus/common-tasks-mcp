@@ -1,11 +1,11 @@
-package task_manager
+package graph_manager
 
 import (
 	"testing"
 	"time"
 
+	"common-tasks-mcp/pkg/graph_manager/types"
 	"common-tasks-mcp/pkg/logger"
-	"common-tasks-mcp/pkg/task_manager/types"
 )
 
 func TestPopulateTagCache(t *testing.T) {

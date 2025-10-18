@@ -1,9 +1,9 @@
-package task_manager
+package graph_manager
 
 import (
 	"fmt"
 
-	"common-tasks-mcp/pkg/task_manager/types"
+	"common-tasks-mcp/pkg/graph_manager/types"
 )
 
 // PopulateTagCache builds the tag cache by iterating through all tasks
