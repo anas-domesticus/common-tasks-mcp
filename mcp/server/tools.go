@@ -60,15 +60,34 @@ func (s *Server) registerTools() {
 		},
 	}, s.handleListTags)
 
-	// List prompts tool
-	s.mcp.AddTool(&mcp.Tool{
-		Name:        "list_prompts",
-		Description: "Get all available prompts that can be used with this MCP server. Returns prompt names with their descriptions. Prompts are loaded from the prompts/ directory and can be customized per deployment.",
-		InputSchema: map[string]interface{}{
-			"type":       "object",
-			"properties": map[string]interface{}{},
-		},
-	}, s.handleListPrompts)
+	// Prompt tools (only registered if prompts are available)
+	if len(s.prompts) > 0 {
+		// List prompts tool
+		s.mcp.AddTool(&mcp.Tool{
+			Name:        "list_prompts",
+			Description: "Get all available prompts that can be used with this MCP server. Returns prompt names with their descriptions. Prompts are loaded from the prompts/ directory and can be customized per deployment.",
+			InputSchema: map[string]interface{}{
+				"type":       "object",
+				"properties": map[string]interface{}{},
+			},
+		}, s.handleListPrompts)
+
+		// Get prompt tool
+		s.mcp.AddTool(&mcp.Tool{
+			Name:        "get_prompt",
+			Description: "Get the full content of a specific prompt by name. Use list_prompts to discover available prompts first.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"name": map[string]interface{}{
+						"type":        "string",
+						"description": "Name of the prompt to retrieve",
+					},
+				},
+				"required": []string{"name"},
+			},
+		}, s.handleGetPrompt)
+	}
 
 	// Write tools (only registered when not in read-only mode)
 	if !s.config.ReadOnly {
@@ -317,6 +336,56 @@ func (s *Server) handleListPrompts(ctx context.Context, req *mcp.CallToolRequest
 		Content: []mcp.Content{
 			&mcp.TextContent{
 				Text: formatPromptsAsMarkdown(prompts),
+			},
+		},
+	}, nil
+}
+
+// handleGetPrompt handles the get_prompt tool
+func (s *Server) handleGetPrompt(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.logger.Debug("Handling get_prompt request")
+
+	var args struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
+		s.logger.Error("Failed to parse get_prompt arguments", zap.Error(err))
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: fmt.Sprintf("failed to parse arguments: %v", err),
+				},
+			},
+		}, nil
+	}
+
+	s.logger.Info("Getting prompt", zap.String("name", args.Name))
+
+	// Get prompt info
+	promptInfo, exists := s.prompts[args.Name]
+	if !exists {
+		s.logger.Error("Prompt not found", zap.String("name", args.Name))
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: fmt.Sprintf("prompt '%s' not found. Use list_prompts to see available prompts.", args.Name),
+				},
+			},
+		}, nil
+	}
+
+	s.logger.Info("Successfully retrieved prompt",
+		zap.String("name", args.Name),
+		zap.Int("content_length", len(promptInfo.Content)),
+	)
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: promptInfo.Content,
 			},
 		},
 	}, nil
