@@ -1,0 +1,26 @@
+id: update-main-readme
+name: Update Main README
+summary: Update the main README.md file in the project root
+description: |-
+    Updates the main README.md file located in the project root directory.
+
+    This task should be performed when:
+    - Adding new features or capabilities to the project
+    - Changing how the project is used or configured
+    - Adding new MCP tools, prompts, or resources
+    - Updating installation or setup instructions
+    - Adding or modifying documentation sections
+
+    The README.md file is the primary documentation entry point for the project.
+
+    File to modify:
+    - `README.md` - main project documentation
+tags:
+    - documentation
+    - readme
+edges:
+    downstream_required: []
+    downstream_suggested: []
+    prerequisites: []
+created_at: 2025-10-18T13:14:02.864595634+01:00
+updated_at: 2025-10-18T13:14:02.864595634+01:00

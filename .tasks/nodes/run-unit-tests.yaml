@@ -9,8 +9,8 @@ tags:
     - go
     - testing
 edges:
-    prerequisites: []
     downstream_required: []
     downstream_suggested: []
+    prerequisites: []
 created_at: 2025-10-17T22:36:57.116554307Z
 updated_at: 2025-10-17T22:36:57.116554307Z
