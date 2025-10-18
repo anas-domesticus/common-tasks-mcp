@@ -27,7 +27,5 @@ tags:
 edges:
   prerequisites:
     - build-binary
-  downstream_suggested:
-    - generate-coverage-report
 created_at: 2024-01-15T10:15:00Z
 updated_at: 2024-01-15T10:15:00Z

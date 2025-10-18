@@ -33,13 +33,5 @@ edges:
   prerequisites:
     - run-tests
     - build-binary
-    - build-docker-image
-  downstream_required:
-    - verify-health-checks
-    - smoke-test-production
-  downstream_suggested:
-    - update-release-notes
-    - notify-stakeholders
-    - update-runbook
 created_at: 2024-01-15T11:00:00Z
 updated_at: 2024-01-15T11:00:00Z
