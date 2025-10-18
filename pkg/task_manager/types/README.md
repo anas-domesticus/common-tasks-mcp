@@ -1,128 +1,308 @@
-# Task Types
+# Graph Types
 
-This package defines the core data structures for task management, with a focus on expressing relationships between tasks.
+This package defines the core data structures for task management, with a focus on expressing flexible, configurable relationships between nodes in a directed acyclic graph (DAG).
 
-## Task Relationships: Three DAGs
+## Overview: Flexible Relationship System
 
-The task system is built around **three distinct Directed Acyclic Graphs (DAGs)** that share the same nodes (tasks) but represent different types of relationships:
+The task system is built around **configurable directed acyclic graphs (DAGs)** where:
+- **Nodes** represent tasks or work items
+- **Edges** represent typed relationships between nodes
+- **Relationships** define the categories/types of edges and their temporal direction
 
-1. **Prerequisites** - Tasks that must be completed before/as part of this task
-2. **Required Downstream Tasks** - Tasks that must be completed after this task
-3. **Suggested Downstream Tasks** - Tasks that are recommended or related, but optional
+Unlike systems with hardcoded relationship types, this implementation allows you to define any number of relationship types dynamically. Each relationship type forms its own DAG, sharing the same nodes but representing different semantic connections.
 
-All three graphs must be acyclic to maintain a valid task system.
+## Core Types
 
-### 1. Prerequisites (DAG #1)
+### Node (`node.go`)
 
-Prerequisites represent tasks that **must be completed before** or **are components of** the current task. The current task cannot be considered to be completed unless all its prerequisites are completed.
+A Node represents a task or work item in the system.
 
-- **Field**: `PrerequisiteIDs` (persisted) / `Prerequisites` (resolved pointers)
-- **Meaning**: "This task cannot proceed until these tasks are complete"
-- **Constraint**: Hard blocker - must be satisfied
-- **Use case**: Enforcing execution order, blocking tasks until prerequisites are met
+**Metadata fields:**
+- `ID` - Unique identifier
+- `Name` - Human-readable name
+- `Summary` - One-line description
+- `Description` - Detailed explanation
+- `Tags` - Categorization labels
+- `CreatedAt`, `UpdatedAt` - Timestamps
 
-**Example**: Task A is "Create new microservice"
-- Prerequisites might include:
-  - Task X: "Create k8s manifests"
-  - Task Y: "Create container build flow"
+**Relationship storage (two-level system):**
+- `EdgeIDs map[string][]string` - **Persisted** to disk (YAML/JSON key: "edges")
+  - Maps relationship names to lists of target node IDs
+  - Example: `{"prerequisites": ["task-a", "task-b"], "validates": ["task-c"]}`
+- `Edges map[string][]Edge` - **Runtime only** (not persisted, tagged `json:"-" yaml:"-"`)
+  - Maps relationship names to lists of resolved Edge objects with pointers
+  - Populated by the Manager after loading from disk
 
-Task A is **blocked** and cannot start until both Task X and Task Y are completed.
+**Why two levels?**
+- EdgeIDs are the source of truth on disk (simple, serializable strings)
+- Edges provide convenient access to full node objects at runtime
+- Separation allows safe serialization without circular references
 
-### 2. Required Downstream Tasks (DAG #2)
+### Edge (`edge.go`)
 
-Required downstream tasks are tasks that **must be completed after** the current task finishes. These represent mandatory follow-up actions that are triggered by or necessitated by completing the current task.
+An Edge represents a directed connection from one node to another with a specific relationship type.
 
-- **Field**: `DownstreamRequiredIDs` (persisted) / `DownstreamRequired` (resolved pointers)
-- **Meaning**: "These tasks must be done after this task completes"
-- **Constraint**: Hard requirement - must be completed as part of the workflow
-- **Use case**: Enforcing post-completion actions, validation steps, mandatory follow-ups
+```go
+type Edge struct {
+    To   *Node         // Destination node
+    Type *Relationship // Relationship category
+}
+```
 
-**Example**: Continuing with Task A "Create new microservice"
-- Required downstream tasks might include:
-  - Task B: "Run unit tests for new microservice"
-  - Task C: "Run integration tests"
+Edges are runtime constructs - they're not persisted directly, but reconstructed from EdgeIDs when loading.
 
-After Task A completes, Tasks B and C **must be run** before the workflow can be considered complete.
+### Relationship (`relationship.go`)
 
-### 3. Suggested Downstream Tasks (DAG #3)
+A Relationship defines a type/category of relationship between nodes.
 
-Suggested downstream tasks are tasks that are **conceptually related** or **recommended next steps**, but are not mandatory. These represent optional work that logically follows from the current task.
+```go
+type Relationship struct {
+    Name        string                 // e.g., "prerequisites", "validates"
+    Description string                 // Human-readable explanation
+    Direction   RelationshipDirection  // Temporal flow
+}
+```
 
-- **Field**: `DownstreamSuggestedIDs` (persisted) / `DownstreamSuggested` (resolved pointers)
-- **Meaning**: "These tasks are recommended or related, but optional"
-- **Constraint**: Soft suggestion - no blocking
-- **Use case**: Suggesting next actions to users, tracking related work, maintaining project context
+### RelationshipDirection (`relationship_direction.go`)
 
-**Example**: Continuing with Task A "Create new microservice"
-- Downstream suggested tasks might include:
-  - Task D: "Document API endpoints"
-  - Task E: "Add monitoring dashboards"
-  - Task F: "Create runbook for on-call"
+Defines how a relationship flows relative to execution order:
 
-These tasks are good ideas and logically follow from creating a new service, but they could be done independently, deferred, or skipped based on priorities.
+- `DirectionBackward` - Points to nodes that come **before** in execution order
+  - Example: "prerequisites" (these must complete before this node)
+- `DirectionForward` - Points to nodes that come **after** in execution order
+  - Example: "downstream_required" (these must complete after this node)
+- `DirectionNone` - No temporal ordering
+  - Example: "related_to", "validates" (conceptual links without ordering)
 
-### Key Distinctions
+## Example: Task Workflow Relationships
 
-**Three independent DAGs:**
-- Each DAG represents a different type of relationship between tasks
-- A task can appear in multiple DAGs with different edges
-- The edges in one DAG are independent of edges in another DAG
+Let's model a microservice deployment workflow with three relationship types:
 
-**Constraint levels:**
-1. **Prerequisites**: Hard blocker - cannot consider this task to be complete until these are also completed
-2. **Required Downstream Tasks**: Hard requirement - must complete these tasks after this task finishes
-3. **Suggested Downstream Tasks**: Soft suggestion - optional related work
+### Defining Relationships
 
-**Workflow implications:**
-- Prerequisites block task start
-- Required Downstream Tasks block workflow completion
-- Suggested Downstream Tasks provide guidance but don't block anything
+```go
+prerequisitesRel := Relationship{
+    Name:        "prerequisites",
+    Description: "Tasks that must be completed before this task",
+    Direction:   DirectionBackward,
+}
 
-### Visual Example
+downstreamRequiredRel := Relationship{
+    Name:        "downstream_required",
+    Description: "Tasks that must be completed after this task",
+    Direction:   DirectionForward,
+}
+
+downstreamSuggestedRel := Relationship{
+    Name:        "downstream_suggested",
+    Description: "Recommended follow-up tasks",
+    Direction:   DirectionForward,
+}
+```
+
+### Building the Graph
 
 ```
 Task A: "Create new microservice"
-   Prerequisites (MUST complete first):
-      Task X: "Create k8s manifests"
-      Task Y: "Create container build flow"
+   EdgeIDs: {
+       "prerequisites": ["task-x", "task-y"],
+       "downstream_required": ["task-b", "task-c"],
+       "downstream_suggested": ["task-d", "task-e", "task-f"]
+   }
 
-   Required Downstream Tasks (MUST complete after):
-      Task B: "Run unit tests for new microservice"
-      Task C: "Run integration tests"
-
-   Suggested Downstream Tasks (OPTIONAL):
-      Task D: "Document API endpoints"
-      Task E: "Add monitoring dashboards"
-      Task F: "Create runbook for on-call"
+Task X: "Create k8s manifests"
+Task Y: "Create container build flow"
+Task B: "Run unit tests"
+Task C: "Run integration tests"
+Task D: "Document API endpoints"
+Task E: "Add monitoring dashboards"
+Task F: "Create runbook for on-call"
 ```
 
-**Workflow execution:**
-1. Tasks X and Y must complete **before** Task A can start (Prerequisites)
+### Workflow Semantics
+
+**Prerequisites (DirectionBackward):**
+- Task A cannot start until Tasks X and Y complete
+- Hard blocker - these must be satisfied first
+
+**Required Downstream Tasks (DirectionForward):**
+- After Task A completes, Tasks B and C **must** run
+- Hard requirement - workflow incomplete without them
+
+**Suggested Downstream Tasks (DirectionForward):**
+- Tasks D, E, and F are recommended but optional
+- Soft suggestions - provide guidance without blocking
+
+**Execution order:**
+1. Tasks X and Y complete (prerequisites)
 2. Task A executes
-3. After Task A completes, Tasks B and C **must be run** (Required Downstream Tasks)
-4. Tasks D, E, and F are **recommended** but optional (Suggested Downstream Tasks)
-5. The workflow is only complete when A, B, and C are all done (X and Y are prerequisites)
+3. Tasks B and C must run (required downstream)
+4. Tasks D, E, F are recommended (suggested downstream)
+5. Workflow complete when A, B, C are done
 
-## Implementation Notes
+## Flexibility: Custom Relationship Types
 
-- **Persisted fields**: `PrerequisiteIDs`, `DownstreamRequiredIDs`, and `DownstreamSuggestedIDs` store task IDs as strings
-- **Runtime fields**: `Prerequisites`, `DownstreamRequired`, and `DownstreamSuggested` store resolved pointers to actual Task objects (not persisted)
-- The resolved pointers are populated by the task manager when loading and building the task graph
+The system isn't limited to prerequisites and downstream tasks. You can define any relationships that make sense for your domain:
+
+**Quality assurance:**
+```go
+{
+    Name:        "validates",
+    Description: "Tasks that validate this task's output",
+    Direction:   DirectionNone,  // Conceptual link, not temporal
+}
+```
+
+**Component relationships:**
+```go
+{
+    Name:        "depends_on",
+    Description: "Components this task depends on",
+    Direction:   DirectionBackward,
+}
+```
+
+**Documentation links:**
+```go
+{
+    Name:        "documents",
+    Description: "Documentation tasks for this feature",
+    Direction:   DirectionForward,
+}
+```
+
+## Implementation Patterns
+
+### Creating a Node with Relationships
+
+```go
+node := &Node{
+    ID:          "deploy-api",
+    Name:        "Deploy API Service",
+    Summary:     "Deploy the REST API to production",
+    Description: "Full deployment including tests and rollout",
+    Tags:        []string{"deployment", "production", "api"},
+    EdgeIDs: map[string][]string{
+        "prerequisites":        {"build-binary", "run-tests"},
+        "downstream_required":  {"smoke-test", "update-docs"},
+    },
+    CreatedAt:   time.Now(),
+    UpdatedAt:   time.Now(),
+}
+```
+
+### Working with Edge Methods
+
+The Node type provides methods to manage both EdgeIDs and Edges:
+
+**ID-level operations (work with strings):**
+```go
+node.GetEdgeIDs("prerequisites")                    // Returns []string
+node.SetEdgeIDs("prerequisites", []string{"a", "b"}) // Replaces all IDs
+node.AddEdgeID("prerequisites", "c")                 // Appends one ID
+```
+
+**Edge-level operations (work with resolved pointers):**
+```go
+node.GetEdges("prerequisites")         // Returns []Edge
+node.SetEdges("prerequisites", edges)  // Updates both Edges and EdgeIDs
+node.AddEdge("prerequisites", edge)    // Updates both Edges and EdgeIDs
+```
+
+**Important:** Edge-level operations automatically keep EdgeIDs in sync.
+
+### Serialization Behavior
+
+**Marshalling to YAML/JSON:**
+```yaml
+id: deploy-api
+name: Deploy API Service
+edges:
+  prerequisites:
+    - build-binary
+    - run-tests
+  downstream_required:
+    - smoke-test
+    - update-docs
+```
+
+Only EdgeIDs are persisted (under the key "edges"). The Edges map is ignored.
+
+**Unmarshalling from YAML/JSON:**
+- EdgeIDs map is populated from the "edges" key
+- Edges map remains nil (to be resolved by the Manager)
+
+### Cloning Nodes
+
+```go
+clone := node.Clone()
+```
+
+Clone creates a deep copy of all persisted fields:
+- ✅ Copies: ID, Name, Summary, Description, Tags, EdgeIDs, timestamps
+- ❌ Skips: Edges map (left as nil, to be re-resolved)
+
+### Comparing Nodes
+
+```go
+equal := node1.Equals(node2)
+```
+
+Equals compares all persisted fields, including:
+- Scalar fields (ID, Name, etc.)
+- Tags slice (order matters)
+- EdgeIDs map (order within slices matters)
+- Timestamps (using time.Equal for proper comparison)
+
+## Multiple DAGs, Shared Nodes
+
+Each relationship type forms an independent DAG:
+- Different relationship types can have completely different edge structures
+- A node can have different edges in different relationship graphs
+- All DAGs share the same set of nodes
+- Each DAG must remain acyclic independently
+
+**Example:**
+```
+Prerequisites DAG: X → A, Y → A
+Downstream DAG:    A → B, A → C
+Validates DAG:     C → A, B → A
+```
+
+Node A participates in all three DAGs with different edge configurations.
+
+## Design Principles
+
+1. **Separation of persistence and runtime** - EdgeIDs are serialized, Edges are computed
+2. **Flexibility over hardcoding** - Define relationship types as needed, not baked into the struct
+3. **Type safety** - Edges carry their relationship type, preventing category confusion
+4. **Dual access patterns** - Work with IDs (simple) or Edges (convenient) as needed
+5. **Deep copy support** - Clone nodes safely without worrying about pointer aliasing
+6. **Consistency** - Edge methods maintain EdgeIDs and Edges in sync
 
 ## Use Cases
 
-### Prerequisites
+**Prerequisites (DirectionBackward):**
 - Workflow enforcement (can't deploy before building)
 - Resource availability (can't use infrastructure before it's created)
-- Logical prerequisites (can't test code before it's written)
+- Logical dependencies (can't test code before it's written)
 
-### Required Downstream Tasks
-- Enforcing post-completion actions
-- Validation steps that must run after task completion
-- Mandatory follow-up actions
+**Required Downstream Tasks (DirectionForward):**
+- Enforcing post-completion actions (must run tests after build)
+- Validation steps (must verify after deployment)
+- Mandatory follow-up actions (must update docs after feature)
 
-### Suggested Downstream Tasks
-- Suggesting next actions to users
+**Suggested Downstream Tasks (DirectionForward):**
+- Recommending next actions to users
 - Tracking related work items
 - Maintaining project context
 - Visualizing project flow without strict blocking
+
+**Custom Relationships:**
+- Code review workflows ("reviewed_by")
+- Component dependencies ("depends_on")
+- Test coverage ("tested_by")
+- Documentation links ("documented_in")
+- Ownership tracking ("owned_by")
+
+The flexibility of the relationship system allows modeling any domain-specific relationships your task management needs require.
