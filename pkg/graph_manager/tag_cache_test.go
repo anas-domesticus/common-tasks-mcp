@@ -13,59 +13,59 @@ func TestPopulateTagCache(t *testing.T) {
 	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
-	// Create tasks with various tags
-	taskA := &types.Node{
+	// Create nodes with various tags
+	nodeA := &types.Node{
 		ID:          "task-a",
 		Name:        "Node A",
-		Summary:     "First task",
+		Summary:     "First node",
 		Description: "Node with backend and api tags",
 		Tags:        []string{"backend", "api"},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	taskB := &types.Node{
+	nodeB := &types.Node{
 		ID:          "task-b",
 		Name:        "Node B",
-		Summary:     "Second task",
+		Summary:     "Second node",
 		Description: "Node with frontend and api tags",
 		Tags:        []string{"frontend", "api"},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	taskC := &types.Node{
+	nodeC := &types.Node{
 		ID:          "task-c",
 		Name:        "Node C",
-		Summary:     "Third task",
+		Summary:     "Third node",
 		Description: "Node with testing tag",
 		Tags:        []string{"testing"},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	taskD := &types.Node{
+	nodeD := &types.Node{
 		ID:          "task-d",
 		Name:        "Node D",
-		Summary:     "Fourth task",
+		Summary:     "Fourth node",
 		Description: "Node with backend tag",
 		Tags:        []string{"backend"},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	// Add tasks to manager
-	if err := manager.AddNode(taskA); err != nil {
-		t.Fatalf("Failed to add task A: %v", err)
+	// Add nodes to manager
+	if err := manager.AddNode(nodeA); err != nil {
+		t.Fatalf("Failed to add node A: %v", err)
 	}
-	if err := manager.AddNode(taskB); err != nil {
-		t.Fatalf("Failed to add task B: %v", err)
+	if err := manager.AddNode(nodeB); err != nil {
+		t.Fatalf("Failed to add node B: %v", err)
 	}
-	if err := manager.AddNode(taskC); err != nil {
-		t.Fatalf("Failed to add task C: %v", err)
+	if err := manager.AddNode(nodeC); err != nil {
+		t.Fatalf("Failed to add node C: %v", err)
 	}
-	if err := manager.AddNode(taskD); err != nil {
-		t.Fatalf("Failed to add task D: %v", err)
+	if err := manager.AddNode(nodeD); err != nil {
+		t.Fatalf("Failed to add node D: %v", err)
 	}
 
 	// Populate the tag cache
@@ -76,92 +76,92 @@ func TestPopulateTagCache(t *testing.T) {
 		t.Errorf("Expected 4 unique tags in cache, got %d", len(manager.tagCache))
 	}
 
-	// Verify "api" tag has 2 tasks (A and B)
+	// Verify "api" tag has 2 nodes (A and B)
 	apiNodes, exists := manager.tagCache["api"]
 	if !exists {
 		t.Error("Expected 'api' tag to exist in cache")
 	} else if len(apiNodes) != 2 {
-		t.Errorf("Expected 2 tasks with 'api' tag, got %d", len(apiNodes))
+		t.Errorf("Expected 2 nodes with 'api' tag, got %d", len(apiNodes))
 	} else {
-		// Verify the correct tasks are present
+		// Verify the correct nodes are present
 		foundA, foundB := false, false
-		for _, task := range apiNodes {
-			if task.ID == "task-a" {
+		for _, node := range apiNodes {
+			if node.ID == "task-a" {
 				foundA = true
 			}
-			if task.ID == "task-b" {
+			if node.ID == "task-b" {
 				foundB = true
 			}
 		}
 		if !foundA || !foundB {
-			t.Error("Expected tasks A and B to be tagged with 'api'")
+			t.Error("Expected nodes A and B to be tagged with 'api'")
 		}
 	}
 
-	// Verify "backend" tag has 2 tasks (A and D)
+	// Verify "backend" tag has 2 nodes (A and D)
 	backendNodes, exists := manager.tagCache["backend"]
 	if !exists {
 		t.Error("Expected 'backend' tag to exist in cache")
 	} else if len(backendNodes) != 2 {
-		t.Errorf("Expected 2 tasks with 'backend' tag, got %d", len(backendNodes))
+		t.Errorf("Expected 2 nodes with 'backend' tag, got %d", len(backendNodes))
 	} else {
 		foundA, foundD := false, false
-		for _, task := range backendNodes {
-			if task.ID == "task-a" {
+		for _, node := range backendNodes {
+			if node.ID == "task-a" {
 				foundA = true
 			}
-			if task.ID == "task-d" {
+			if node.ID == "task-d" {
 				foundD = true
 			}
 		}
 		if !foundA || !foundD {
-			t.Error("Expected tasks A and D to be tagged with 'backend'")
+			t.Error("Expected nodes A and D to be tagged with 'backend'")
 		}
 	}
 
-	// Verify "frontend" tag has 1 task (B)
+	// Verify "frontend" tag has 1 node (B)
 	frontendNodes, exists := manager.tagCache["frontend"]
 	if !exists {
 		t.Error("Expected 'frontend' tag to exist in cache")
 	} else if len(frontendNodes) != 1 {
-		t.Errorf("Expected 1 task with 'frontend' tag, got %d", len(frontendNodes))
+		t.Errorf("Expected 1 node with 'frontend' tag, got %d", len(frontendNodes))
 	} else if frontendNodes[0].ID != "task-b" {
-		t.Errorf("Expected task B to be tagged with 'frontend', got %s", frontendNodes[0].ID)
+		t.Errorf("Expected node B to be tagged with 'frontend', got %s", frontendNodes[0].ID)
 	}
 
-	// Verify "testing" tag has 1 task (C)
+	// Verify "testing" tag has 1 node (C)
 	testingNodes, exists := manager.tagCache["testing"]
 	if !exists {
 		t.Error("Expected 'testing' tag to exist in cache")
 	} else if len(testingNodes) != 1 {
-		t.Errorf("Expected 1 task with 'testing' tag, got %d", len(testingNodes))
+		t.Errorf("Expected 1 node with 'testing' tag, got %d", len(testingNodes))
 	} else if testingNodes[0].ID != "task-c" {
-		t.Errorf("Expected task C to be tagged with 'testing', got %s", testingNodes[0].ID)
+		t.Errorf("Expected node C to be tagged with 'testing', got %s", testingNodes[0].ID)
 	}
 
 	// Test cache repopulation (should clear and rebuild)
-	taskE := &types.Node{
+	nodeE := &types.Node{
 		ID:          "task-e",
 		Name:        "Node E",
-		Summary:     "Fifth task",
-		Description: "Additional task with api tag",
+		Summary:     "Fifth node",
+		Description: "Additional node with api tag",
 		Tags:        []string{"api"},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
-	if err := manager.AddNode(taskE); err != nil {
-		t.Fatalf("Failed to add task E: %v", err)
+	if err := manager.AddNode(nodeE); err != nil {
+		t.Fatalf("Failed to add node E: %v", err)
 	}
 
 	// Repopulate cache
 	manager.PopulateTagCache()
 
-	// Verify "api" tag now has 3 tasks (A, B, and E)
+	// Verify "api" tag now has 3 nodes (A, B, and E)
 	apiNodes, exists = manager.tagCache["api"]
 	if !exists {
 		t.Error("Expected 'api' tag to exist in cache after repopulation")
 	} else if len(apiNodes) != 3 {
-		t.Errorf("Expected 3 tasks with 'api' tag after repopulation, got %d", len(apiNodes))
+		t.Errorf("Expected 3 nodes with 'api' tag after repopulation, got %d", len(apiNodes))
 	}
 }
 
@@ -170,91 +170,91 @@ func TestGetNodesByTag(t *testing.T) {
 	manager := NewManager(log)
 	now := time.Now().UTC().Truncate(time.Second)
 
-	// Create tasks with various tags
-	taskA := &types.Node{
+	// Create nodes with various tags
+	nodeA := &types.Node{
 		ID:          "task-a",
 		Name:        "Node A",
-		Summary:     "First task",
+		Summary:     "First node",
 		Description: "Node with backend and api tags",
 		Tags:        []string{"backend", "api"},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	taskB := &types.Node{
+	nodeB := &types.Node{
 		ID:          "task-b",
 		Name:        "Node B",
-		Summary:     "Second task",
+		Summary:     "Second node",
 		Description: "Node with frontend and api tags",
 		Tags:        []string{"frontend", "api"},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	taskC := &types.Node{
+	nodeC := &types.Node{
 		ID:          "task-c",
 		Name:        "Node C",
-		Summary:     "Third task",
+		Summary:     "Third node",
 		Description: "Node with testing tag",
 		Tags:        []string{"testing"},
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
-	// Add tasks
-	if err := manager.AddNode(taskA); err != nil {
-		t.Fatalf("Failed to add task A: %v", err)
+	// Add nodes
+	if err := manager.AddNode(nodeA); err != nil {
+		t.Fatalf("Failed to add node A: %v", err)
 	}
-	if err := manager.AddNode(taskB); err != nil {
-		t.Fatalf("Failed to add task B: %v", err)
+	if err := manager.AddNode(nodeB); err != nil {
+		t.Fatalf("Failed to add node B: %v", err)
 	}
-	if err := manager.AddNode(taskC); err != nil {
-		t.Fatalf("Failed to add task C: %v", err)
+	if err := manager.AddNode(nodeC); err != nil {
+		t.Fatalf("Failed to add node C: %v", err)
 	}
 
 	// Populate tag cache
 	manager.PopulateTagCache()
 
-	// Test retrieving tasks by existing tag with multiple tasks
+	// Test retrieving nodes by existing tag with multiple nodes
 	apiNodes, err := manager.GetNodesByTag("api")
 	if err != nil {
-		t.Fatalf("Expected no error when retrieving tasks by 'api' tag, got: %v", err)
+		t.Fatalf("Expected no error when retrieving nodes by 'api' tag, got: %v", err)
 	}
 	if len(apiNodes) != 2 {
-		t.Errorf("Expected 2 tasks with 'api' tag, got %d", len(apiNodes))
+		t.Errorf("Expected 2 nodes with 'api' tag, got %d", len(apiNodes))
 	}
 	foundA, foundB := false, false
-	for _, task := range apiNodes {
-		if task.ID == "task-a" {
+	for _, node := range apiNodes {
+		if node.ID == "task-a" {
 			foundA = true
 		}
-		if task.ID == "task-b" {
+		if node.ID == "task-b" {
 			foundB = true
 		}
 	}
 	if !foundA || !foundB {
-		t.Error("Expected tasks A and B to be returned for 'api' tag")
+		t.Error("Expected nodes A and B to be returned for 'api' tag")
 	}
 
-	// Test retrieving tasks by existing tag with single task
+	// Test retrieving nodes by existing tag with single node
 	testingNodes, err := manager.GetNodesByTag("testing")
 	if err != nil {
-		t.Fatalf("Expected no error when retrieving tasks by 'testing' tag, got: %v", err)
+		t.Fatalf("Expected no error when retrieving nodes by 'testing' tag, got: %v", err)
 	}
 	if len(testingNodes) != 1 {
-		t.Errorf("Expected 1 task with 'testing' tag, got %d", len(testingNodes))
+		t.Errorf("Expected 1 node with 'testing' tag, got %d", len(testingNodes))
 	}
 	if testingNodes[0].ID != "task-c" {
-		t.Errorf("Expected task C for 'testing' tag, got %s", testingNodes[0].ID)
+		t.Errorf("Expected node C for 'testing' tag, got %s", testingNodes[0].ID)
 	}
 
-	// Test retrieving tasks by non-existent tag
+	// Test retrieving nodes by non-existent tag
 	nonExistentNodes, err := manager.GetNodesByTag("non-existent")
 	if err != nil {
-		t.Fatalf("Expected no error when retrieving tasks by non-existent tag, got: %v", err)
+		t.Fatalf("Expected no error when retrieving nodes by non-existent tag, got: %v", err)
 	}
 	if len(nonExistentNodes) != 0 {
-		t.Errorf("Expected 0 tasks for non-existent tag, got %d", len(nonExistentNodes))
+		t.Errorf("Expected 0 nodes for non-existent tag, got %d", len(nonExistentNodes))
 	}
 
 	// Test retrieving with empty tag

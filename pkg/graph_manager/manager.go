@@ -11,16 +11,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Manager handles task graph operations
+// Manager handles node graph operations
 type Manager struct {
 	nodes    map[string]*types.Node
 	tagCache map[string][]*types.Node
 	logger   *zap.Logger
 }
 
-// NewManager creates a new task manager instance
+// NewManager creates a new node manager instance
 func NewManager(logger *zap.Logger) *Manager {
-	logger.Debug("Creating new task manager")
+	logger.Debug("Creating new node manager")
 	return &Manager{
 		nodes:    make(map[string]*types.Node),
 		tagCache: make(map[string][]*types.Node),
@@ -28,135 +28,135 @@ func NewManager(logger *zap.Logger) *Manager {
 	}
 }
 
-// AddNode adds a task to the manager.
+// AddNode adds a node to the manager.
 // It uses a clone-validate-commit pattern to ensure the addition doesn't introduce cycles.
-func (m *Manager) AddNode(task *types.Node) error {
-	m.logger.Debug("Adding task")
+func (m *Manager) AddNode(node *types.Node) error {
+	m.logger.Debug("Adding node")
 
-	if task == nil {
-		m.logger.Error("Attempted to add nil task")
-		return fmt.Errorf("task cannot be nil")
+	if node == nil {
+		m.logger.Error("Attempted to add nil node")
+		return fmt.Errorf("node cannot be nil")
 	}
-	if task.ID == "" {
-		m.logger.Error("Attempted to add task with empty ID")
-		return fmt.Errorf("task ID cannot be empty")
+	if node.ID == "" {
+		m.logger.Error("Attempted to add node with empty ID")
+		return fmt.Errorf("node ID cannot be empty")
 	}
-	if _, exists := m.nodes[task.ID]; exists {
-		m.logger.Warn("Node already exists", zap.String("task_id", task.ID))
-		return fmt.Errorf("task with ID %s already exists", task.ID)
+	if _, exists := m.nodes[node.ID]; exists {
+		m.logger.Warn("Node already exists", zap.String("node_id", node.ID))
+		return fmt.Errorf("node with ID %s already exists", node.ID)
 	}
 
-	m.logger.Debug("Validating task addition for cycles", zap.String("task_id", task.ID))
+	m.logger.Debug("Validating node addition for cycles", zap.String("node_id", node.ID))
 
 	// Clone the manager to test the addition
 	testManager := m.Clone()
 
 	// Perform the addition in the test manager
-	testManager.nodes[task.ID] = task
+	testManager.nodes[node.ID] = node
 
 	// Check for cycles in the test manager
 	if err := testManager.DetectCycles(); err != nil {
 		m.logger.Error("Node addition would introduce cycle",
-			zap.String("task_id", task.ID),
+			zap.String("node_id", node.ID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("addition would introduce cycle: %w", err)
 	}
 
 	// If no cycles detected, commit the addition to the original manager
-	m.nodes[task.ID] = task
-	m.logger.Debug("Node added to internal storage", zap.String("task_id", task.ID))
+	m.nodes[node.ID] = node
+	m.logger.Debug("Node added to internal storage", zap.String("node_id", node.ID))
 
-	// Update tag cache with the new task
+	// Update tag cache with the new node
 	m.PopulateTagCache()
 	m.logger.Info("Node added successfully",
-		zap.String("task_id", task.ID),
-		zap.String("task_name", task.Name),
+		zap.String("node_id", node.ID),
+		zap.String("node_name", node.Name),
 		zap.Int("total_nodes", len(m.nodes)),
 	)
 
 	return nil
 }
 
-// UpdateNode updates an existing task in the manager.
+// UpdateNode updates an existing node in the manager.
 // It uses a clone-validate-commit pattern to ensure the update doesn't introduce cycles,
-// and automatically refreshes all task pointers to prevent stale references.
-func (m *Manager) UpdateNode(task *types.Node) error {
-	m.logger.Debug("Updating task")
+// and automatically refreshes all node pointers to prevent stale references.
+func (m *Manager) UpdateNode(node *types.Node) error {
+	m.logger.Debug("Updating node")
 
-	if task == nil {
-		m.logger.Error("Attempted to update with nil task")
-		return fmt.Errorf("task cannot be nil")
+	if node == nil {
+		m.logger.Error("Attempted to update with nil node")
+		return fmt.Errorf("node cannot be nil")
 	}
-	if task.ID == "" {
-		m.logger.Error("Attempted to update task with empty ID")
-		return fmt.Errorf("task ID cannot be empty")
+	if node.ID == "" {
+		m.logger.Error("Attempted to update node with empty ID")
+		return fmt.Errorf("node ID cannot be empty")
 	}
-	if _, exists := m.nodes[task.ID]; !exists {
-		m.logger.Warn("Node not found for update", zap.String("task_id", task.ID))
-		return fmt.Errorf("task with ID %s not found", task.ID)
+	if _, exists := m.nodes[node.ID]; !exists {
+		m.logger.Warn("Node not found for update", zap.String("node_id", node.ID))
+		return fmt.Errorf("node with ID %s not found", node.ID)
 	}
 
-	m.logger.Debug("Validating task update for cycles", zap.String("task_id", task.ID))
+	m.logger.Debug("Validating node update for cycles", zap.String("node_id", node.ID))
 
 	// Clone the manager to test the update
 	testManager := m.Clone()
 
 	// Perform the update in the test manager
-	testManager.nodes[task.ID] = task
+	testManager.nodes[node.ID] = node
 
 	// Check for cycles in the test manager
 	if err := testManager.DetectCycles(); err != nil {
 		m.logger.Error("Node update would introduce cycle",
-			zap.String("task_id", task.ID),
+			zap.String("node_id", node.ID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("update would introduce cycle: %w", err)
 	}
 
 	// If no cycles detected, commit the update to the original manager
-	m.nodes[task.ID] = task
-	m.logger.Debug("Node updated in internal storage", zap.String("task_id", task.ID))
+	m.nodes[node.ID] = node
+	m.logger.Debug("Node updated in internal storage", zap.String("node_id", node.ID))
 
-	// Resolve all task pointers to fix stale references
-	// This ensures that any nodes pointing to the updated task get fresh pointers
-	m.logger.Debug("Resolving task pointers after update")
+	// Resolve all node pointers to fix stale references
+	// This ensures that any nodes pointing to the updated node get fresh pointers
+	m.logger.Debug("Resolving node pointers after update")
 	if err := m.ResolveNodePointers(); err != nil {
-		m.logger.Error("Failed to resolve task pointers", zap.Error(err))
+		m.logger.Error("Failed to resolve node pointers", zap.Error(err))
 		return err
 	}
 
 	// Update tag cache since tags may have changed
 	m.PopulateTagCache()
 	m.logger.Info("Node updated successfully",
-		zap.String("task_id", task.ID),
-		zap.String("task_name", task.Name),
+		zap.String("node_id", node.ID),
+		zap.String("node_name", node.Name),
 	)
 
 	return nil
 }
 
-// DeleteNode removes a task from the manager and cleans up all references to it
+// DeleteNode removes a node from the manager and cleans up all references to it
 // from other nodes' edge lists.
 func (m *Manager) DeleteNode(id string) error {
-	m.logger.Debug("Deleting task", zap.String("task_id", id))
+	m.logger.Debug("Deleting node", zap.String("node_id", id))
 
 	if id == "" {
-		m.logger.Error("Attempted to delete task with empty ID")
-		return fmt.Errorf("task ID cannot be empty")
+		m.logger.Error("Attempted to delete node with empty ID")
+		return fmt.Errorf("node ID cannot be empty")
 	}
 	if _, exists := m.nodes[id]; !exists {
-		m.logger.Warn("Node not found for deletion", zap.String("task_id", id))
-		return fmt.Errorf("task with ID %s not found", id)
+		m.logger.Warn("Node not found for deletion", zap.String("node_id", id))
+		return fmt.Errorf("node with ID %s not found", id)
 	}
 
 	// Purge the node from the graph (removes all edges and the node itself)
 	m.purgeNode(id)
 
-	// Update tag cache since a task was removed
+	// Update tag cache since a node was removed
 	m.PopulateTagCache()
 	m.logger.Info("Node deleted successfully",
-		zap.String("task_id", id),
+		zap.String("node_id", id),
 		zap.Int("remaining_nodes", len(m.nodes)),
 	)
 
@@ -258,18 +258,18 @@ func (m *Manager) ListAllNodes() []*types.Node {
 	return nodes
 }
 
-// GetNode retrieves a task by ID
+// GetNode retrieves a node by ID
 func (m *Manager) GetNode(id string) (*types.Node, error) {
 	if id == "" {
-		return nil, fmt.Errorf("task ID cannot be empty")
+		return nil, fmt.Errorf("node ID cannot be empty")
 	}
 
-	task, exists := m.nodes[id]
+	node, exists := m.nodes[id]
 	if !exists {
-		return nil, fmt.Errorf("task with ID %s not found", id)
+		return nil, fmt.Errorf("node with ID %s not found", id)
 	}
 
-	return task, nil
+	return node, nil
 }
 
 // getNodes retrieves multiple nodes by their IDs
@@ -283,16 +283,16 @@ func (m *Manager) getNodes(ids []string) ([]*types.Node, error) {
 
 	for _, id := range ids {
 		if id == "" {
-			return nil, fmt.Errorf("task ID cannot be empty")
+			return nil, fmt.Errorf("node ID cannot be empty")
 		}
 
-		task, exists := m.nodes[id]
+		node, exists := m.nodes[id]
 		if !exists {
 			notFound = append(notFound, id)
 			continue
 		}
 
-		nodes = append(nodes, task)
+		nodes = append(nodes, node)
 	}
 
 	if len(notFound) > 0 {
@@ -360,7 +360,7 @@ func (m *Manager) Clone() *Manager {
 		return nil
 	}
 
-	m.logger.Debug("Cloning manager", zap.Int("task_count", len(m.nodes)))
+	m.logger.Debug("Cloning manager", zap.Int("node_count", len(m.nodes)))
 
 	// Create new manager with same logger
 	clone := &Manager{
@@ -370,12 +370,12 @@ func (m *Manager) Clone() *Manager {
 	}
 
 	// Clone all nodes
-	for id, task := range m.nodes {
-		clonedNode := task.Clone()
+	for id, node := range m.nodes {
+		clonedNode := node.Clone()
 		clone.nodes[id] = clonedNode
 	}
 
-	// Resolve task pointers in the cloned manager
+	// Resolve node pointers in the cloned manager
 	// Note: We ignore errors here because if the original manager was valid,
 	// the clone should also be valid. If there are resolution errors, they
 	// would have existed in the original manager too.
@@ -440,17 +440,17 @@ func (m *Manager) DetectCycles() error {
 }
 
 // detectCyclesInDAG performs cycle detection on a specific DAG using DFS
-// Returns a slice of cycle descriptions (e.g., "task-a -> task-b -> task-c -> task-a")
+// Returns a slice of cycle descriptions (e.g., "node-a -> node-b -> node-c -> node-a")
 func (m *Manager) detectCyclesInDAG(dagName string, getEdges func(*types.Node) []string) []string {
 	visited := make(map[string]bool)
 	recStack := make(map[string]bool)
 	var cycles []string
 	path := []string{}
 
-	// Check each task as a potential starting point
-	for taskID := range m.nodes {
-		if !visited[taskID] {
-			m.findCyclesDFS(taskID, visited, recStack, &path, &cycles, getEdges)
+	// Check each node as a potential starting point
+	for nodeID := range m.nodes {
+		if !visited[nodeID] {
+			m.findCyclesDFS(nodeID, visited, recStack, &path, &cycles, getEdges)
 		}
 	}
 
@@ -458,17 +458,17 @@ func (m *Manager) detectCyclesInDAG(dagName string, getEdges func(*types.Node) [
 }
 
 // findCyclesDFS performs depth-first search to find all cycles
-func (m *Manager) findCyclesDFS(taskID string, visited, recStack map[string]bool, path *[]string, cycles *[]string, getEdges func(*types.Node) []string) {
+func (m *Manager) findCyclesDFS(nodeID string, visited, recStack map[string]bool, path *[]string, cycles *[]string, getEdges func(*types.Node) []string) {
 	// Mark current node as visited and add to recursion stack
-	visited[taskID] = true
-	recStack[taskID] = true
-	*path = append(*path, taskID)
+	visited[nodeID] = true
+	recStack[nodeID] = true
+	*path = append(*path, nodeID)
 
-	// Get the task
-	task, exists := m.nodes[taskID]
+	// Get the node
+	node, exists := m.nodes[nodeID]
 	if exists {
-		// Get edges for this task based on the DAG we're checking
-		edges := getEdges(task)
+		// Get edges for this node based on the DAG we're checking
+		edges := getEdges(node)
 
 		// Recursively check all adjacent nodes
 		for _, adjacentID := range edges {
@@ -503,7 +503,7 @@ func (m *Manager) findCyclesDFS(taskID string, visited, recStack map[string]bool
 	}
 
 	// Remove from recursion stack and path before returning
-	recStack[taskID] = false
+	recStack[nodeID] = false
 	*path = (*path)[:len(*path)-1]
 }
 
@@ -534,7 +534,7 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 		}
 
 		filename := filepath.Join(dirPath, entry.Name())
-		m.logger.Debug("Reading task file", zap.String("filename", filename))
+		m.logger.Debug("Reading node file", zap.String("filename", filename))
 
 		data, err := os.ReadFile(filename)
 		if err != nil {
@@ -542,38 +542,38 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 			return fmt.Errorf("failed to read file %s: %w", entry.Name(), err)
 		}
 
-		var task types.Node
-		if err := yaml.Unmarshal(data, &task); err != nil {
-			m.logger.Error("Failed to unmarshal task",
+		var node types.Node
+		if err := yaml.Unmarshal(data, &node); err != nil {
+			m.logger.Error("Failed to unmarshal node",
 				zap.String("filename", entry.Name()),
 				zap.Error(err),
 			)
-			return fmt.Errorf("failed to unmarshal task from %s: %w", entry.Name(), err)
+			return fmt.Errorf("failed to unmarshal node from %s: %w", entry.Name(), err)
 		}
 
-		m.nodes[task.ID] = &task
+		m.nodes[node.ID] = &node
 		nodesLoaded++
-		m.logger.Debug("Loaded task from file",
-			zap.String("task_id", task.ID),
-			zap.String("task_name", task.Name),
+		m.logger.Debug("Loaded node from file",
+			zap.String("node_id", node.ID),
+			zap.String("node_name", node.Name),
 			zap.String("filename", entry.Name()),
 		)
 	}
 
-	m.logger.Info("Finished loading task files", zap.Int("nodes_loaded", nodesLoaded))
+	m.logger.Info("Finished loading node files", zap.Int("nodes_loaded", nodesLoaded))
 
 	// Detect cycles before resolving pointers
-	m.logger.Debug("Detecting cycles in task graph")
+	m.logger.Debug("Detecting cycles in node graph")
 	if err := m.DetectCycles(); err != nil {
-		m.logger.Error("Cycle detected in task graph", zap.Error(err))
-		return fmt.Errorf("cycle detected in task graph: %w", err)
+		m.logger.Error("Cycle detected in node graph", zap.Error(err))
+		return fmt.Errorf("cycle detected in node graph: %w", err)
 	}
 	m.logger.Debug("No cycles detected")
 
-	// Resolve task pointers after loading all nodes and validating no cycles
-	m.logger.Debug("Resolving task pointers")
+	// Resolve node pointers after loading all nodes and validating no cycles
+	m.logger.Debug("Resolving node pointers")
 	if err := m.ResolveNodePointers(); err != nil {
-		m.logger.Error("Failed to resolve task pointers", zap.Error(err))
+		m.logger.Error("Failed to resolve node pointers", zap.Error(err))
 		return err
 	}
 	m.logger.Debug("Node pointers resolved")
@@ -594,7 +594,7 @@ func (m *Manager) LoadFromDir(dirPath string) error {
 func (m *Manager) PersistToDir(dirPath string) error {
 	m.logger.Info("Persisting nodes to directory",
 		zap.String("path", dirPath),
-		zap.Int("task_count", len(m.nodes)),
+		zap.Int("node_count", len(m.nodes)),
 	)
 
 	// Create directory if it doesn't exist
@@ -603,26 +603,26 @@ func (m *Manager) PersistToDir(dirPath string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Write each task as a separate YAML file
+	// Write each node as a separate YAML file
 	nodesPersisted := 0
-	for id, task := range m.nodes {
+	for id, node := range m.nodes {
 		filename := filepath.Join(dirPath, fmt.Sprintf("%s.yaml", id))
 
-		m.logger.Debug("Marshaling task", zap.String("task_id", id))
-		data, err := yaml.Marshal(task)
+		m.logger.Debug("Marshaling node", zap.String("node_id", id))
+		data, err := yaml.Marshal(node)
 		if err != nil {
-			m.logger.Error("Failed to marshal task", zap.String("task_id", id), zap.Error(err))
-			return fmt.Errorf("failed to marshal task %s: %w", id, err)
+			m.logger.Error("Failed to marshal node", zap.String("node_id", id), zap.Error(err))
+			return fmt.Errorf("failed to marshal node %s: %w", id, err)
 		}
 
-		m.logger.Debug("Writing task file", zap.String("filename", filename))
+		m.logger.Debug("Writing node file", zap.String("filename", filename))
 		if err := os.WriteFile(filename, data, 0644); err != nil {
-			m.logger.Error("Failed to write task file",
-				zap.String("task_id", id),
+			m.logger.Error("Failed to write node file",
+				zap.String("node_id", id),
 				zap.String("filename", filename),
 				zap.Error(err),
 			)
-			return fmt.Errorf("failed to write task %s: %w", id, err)
+			return fmt.Errorf("failed to write node %s: %w", id, err)
 		}
 
 		nodesPersisted++

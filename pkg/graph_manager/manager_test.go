@@ -89,10 +89,10 @@ func TestPersistAndLoad(t *testing.T) {
 
 	// Compare the managers
 	if len(manager1.nodes) != len(manager2.nodes) {
-		t.Errorf("Task count mismatch: expected %d, got %d", len(manager1.nodes), len(manager2.nodes))
+		t.Errorf("Node count mismatch: expected %d, got %d", len(manager1.nodes), len(manager2.nodes))
 	}
 
-	// Compare each task
+	// Compare each node
 	for id, originalNode := range manager1.nodes {
 		loadedNode, exists := manager2.nodes[id]
 		if !exists {
@@ -146,7 +146,7 @@ func TestAddNode(t *testing.T) {
 			setupNodes:    []*types.Node{},
 			nodeToAdd:     nil,
 			wantError:     true,
-			expectedError: "task cannot be nil",
+			expectedError: "node cannot be nil",
 			expectedCount: 0,
 		},
 		{
@@ -154,12 +154,12 @@ func TestAddNode(t *testing.T) {
 			setupNodes: []*types.Node{},
 			nodeToAdd: &types.Node{
 				ID:        "",
-				Name:      "No ID Task",
+				Name:      "No ID Node",
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
 			wantError:     true,
-			expectedError: "task ID cannot be empty",
+			expectedError: "node ID cannot be empty",
 			expectedCount: 0,
 		},
 		{
@@ -167,19 +167,19 @@ func TestAddNode(t *testing.T) {
 			setupNodes: []*types.Node{
 				{
 					ID:        "task-1",
-					Name:      "Existing Task",
+					Name:      "Existing Node",
 					CreatedAt: now,
 					UpdatedAt: now,
 				},
 			},
 			nodeToAdd: &types.Node{
 				ID:        "task-1",
-				Name:      "Duplicate Task",
+				Name:      "Duplicate Node",
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
 			wantError:     true,
-			expectedError: "task with ID task-1 already exists",
+			expectedError: "node with ID task-1 already exists",
 			expectedCount: 1,
 		},
 		{
