@@ -2,22 +2,29 @@ package server
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"common-tasks-mcp/pkg/graph_manager"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
-//go:embed prompts/generate-initial-tasks.md
-var generateInitialTasksPrompt string
+// PromptInfo holds prompt content and metadata
+type PromptInfo struct {
+	Content     string
+	Description string
+}
 
-//go:embed prompts/capture-workflow.md
-var captureWorkflowPrompt string
+// PromptFrontmatter represents the YAML frontmatter in prompt files
+type PromptFrontmatter struct {
+	Description string `yaml:"description"`
+}
 
 // Server wraps the MCP server
 type Server struct {
@@ -25,6 +32,7 @@ type Server struct {
 	config      Config
 	taskManager *graph_manager.Manager
 	logger      *zap.Logger
+	prompts     map[string]*PromptInfo // Map of prompt name to prompt info
 }
 
 // New creates a new MCP server instance with a node manager
@@ -99,6 +107,23 @@ func New(cfg Config, logger *zap.Logger) (*Server, error) {
 		config:      cfg,
 		taskManager: taskMgr,
 		logger:      logger,
+		prompts:     make(map[string]*PromptInfo),
+	}
+
+	// Load prompts from disk
+	promptsPath := filepath.Join(cfg.Directory, "prompts")
+	logger.Info("Loading prompts from directory", zap.String("path", promptsPath))
+	if err := srv.loadPrompts(promptsPath); err != nil {
+		logger.Warn("Could not load prompts from directory",
+			zap.String("directory", promptsPath),
+			zap.Error(err),
+		)
+		// Continue without prompts - they're optional
+		if cfg.Verbose {
+			fmt.Printf("Warning: Could not load prompts from %s: %v\n", promptsPath, err)
+		}
+	} else {
+		logger.Info("Prompts loaded successfully", zap.Int("count", len(srv.prompts)))
 	}
 
 	// Register all MCP tools
@@ -178,66 +203,152 @@ func (s *Server) Run(ctx context.Context) error {
 	return err
 }
 
-// GetGenerateInitialTasksPrompt returns the embedded prompt for generating initial tasks
-func GetGenerateInitialTasksPrompt() string {
-	return generateInitialTasksPrompt
+// loadPrompts loads prompt files from the specified directory
+func (s *Server) loadPrompts(promptsDir string) error {
+	// Check if prompts directory exists
+	if _, err := os.Stat(promptsDir); os.IsNotExist(err) {
+		return fmt.Errorf("prompts directory does not exist: %s", promptsDir)
+	}
+
+	// Read all .md files from the prompts directory
+	entries, err := os.ReadDir(promptsDir)
+	if err != nil {
+		return fmt.Errorf("failed to read prompts directory: %w", err)
+	}
+
+	loadedCount := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		// Only process .md files
+		if filepath.Ext(entry.Name()) != ".md" {
+			continue
+		}
+
+		// Read prompt content
+		promptPath := filepath.Join(promptsDir, entry.Name())
+		content, err := os.ReadFile(promptPath)
+		if err != nil {
+			s.logger.Warn("Failed to read prompt file",
+				zap.String("file", entry.Name()),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		// Use filename without extension as prompt name
+		promptName := entry.Name()[:len(entry.Name())-3]
+
+		// Parse frontmatter and content
+		promptInfo := s.parsePromptFile(string(content), promptName)
+
+		s.prompts[promptName] = promptInfo
+		loadedCount++
+
+		s.logger.Debug("Loaded prompt",
+			zap.String("name", promptName),
+			zap.String("file", entry.Name()),
+			zap.String("description", promptInfo.Description),
+			zap.Int("content_size", len(promptInfo.Content)),
+		)
+	}
+
+	if loadedCount == 0 {
+		return fmt.Errorf("no prompt files found in directory")
+	}
+
+	return nil
+}
+
+// parsePromptFile parses a prompt file with optional YAML frontmatter
+func (s *Server) parsePromptFile(content string, promptName string) *PromptInfo {
+	info := &PromptInfo{
+		Content:     content,
+		Description: fmt.Sprintf("Prompt: %s", promptName), // Default fallback
+	}
+
+	// Check for YAML frontmatter (starts with ---)
+	if !strings.HasPrefix(content, "---\n") {
+		// No frontmatter, return as-is
+		return info
+	}
+
+	// Find the closing ---
+	parts := strings.SplitN(content[4:], "\n---\n", 2)
+	if len(parts) != 2 {
+		// Invalid frontmatter, return as-is
+		s.logger.Warn("Invalid frontmatter format in prompt",
+			zap.String("name", promptName),
+		)
+		return info
+	}
+
+	// Parse YAML frontmatter
+	var frontmatter PromptFrontmatter
+	if err := yaml.Unmarshal([]byte(parts[0]), &frontmatter); err != nil {
+		s.logger.Warn("Failed to parse frontmatter in prompt",
+			zap.String("name", promptName),
+			zap.Error(err),
+		)
+		return info
+	}
+
+	// Update info with parsed values
+	if frontmatter.Description != "" {
+		info.Description = frontmatter.Description
+	}
+	info.Content = strings.TrimSpace(parts[1])
+
+	return info
 }
 
 // registerPrompts registers all MCP prompts with the server
 func (s *Server) registerPrompts() {
-	// Generate initial tasks prompt
-	generateTasksPrompt := &mcp.Prompt{
-		Name:        "generate-initial-tasks",
-		Description: "Prompt for generating an initial set of tasks for a codebase. Guides exploration of project structure, build systems, CI/CD configs, and documentation to create tasks with proper relationships and workflows.",
+	// Register all prompts that were successfully loaded
+	for promptName, promptInfo := range s.prompts {
+		prompt := &mcp.Prompt{
+			Name:        promptName,
+			Description: promptInfo.Description,
+		}
+
+		s.mcp.AddPrompt(prompt, s.handlePrompt)
+		s.logger.Debug("Registered prompt",
+			zap.String("name", promptName),
+			zap.String("description", promptInfo.Description),
+		)
 	}
 
-	s.mcp.AddPrompt(generateTasksPrompt, s.handleGenerateTasksPrompt)
-
-	// Capture workflow prompt
-	captureWorkflowPrompt := &mcp.Prompt{
-		Name:        "capture-workflow",
-		Description: "Prompt for capturing workflows as tasks during active development. Guides recognition of repeatable operations and helps maintain tasks as you work, ensuring institutional knowledge is captured in real-time.",
+	if len(s.prompts) == 0 {
+		s.logger.Info("No prompts registered (none found in prompts directory)")
 	}
-
-	s.mcp.AddPrompt(captureWorkflowPrompt, s.handleCaptureWorkflowPrompt)
 }
 
-// handleGenerateTasksPrompt handles the generate-initial-tasks prompt
-func (s *Server) handleGenerateTasksPrompt(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-	s.logger.Debug("Handling generate-initial-tasks prompt request")
+// handlePrompt is a generic handler for all prompts
+func (s *Server) handlePrompt(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	promptName := req.Params.Name
+	s.logger.Debug("Handling prompt request", zap.String("name", promptName))
 
-	prompt := generateInitialTasksPrompt
+	// Get prompt info from loaded prompts
+	promptInfo, exists := s.prompts[promptName]
+	if !exists {
+		s.logger.Error("Prompt not found", zap.String("name", promptName))
+		return nil, fmt.Errorf("prompt %s not found", promptName)
+	}
 
-	s.logger.Info("Successfully retrieved generate-initial-tasks prompt", zap.Int("length", len(prompt)))
+	s.logger.Info("Successfully retrieved prompt",
+		zap.String("name", promptName),
+		zap.Int("content_length", len(promptInfo.Content)),
+	)
 
 	return &mcp.GetPromptResult{
-		Description: "Prompt for generating an initial set of tasks for a codebase",
+		Description: promptInfo.Description,
 		Messages: []*mcp.PromptMessage{
 			{
 				Role: "user",
 				Content: &mcp.TextContent{
-					Text: prompt,
-				},
-			},
-		},
-	}, nil
-}
-
-// handleCaptureWorkflowPrompt handles the capture-workflow prompt
-func (s *Server) handleCaptureWorkflowPrompt(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-	s.logger.Debug("Handling capture-workflow prompt request")
-
-	prompt := captureWorkflowPrompt
-
-	s.logger.Info("Successfully retrieved capture-workflow prompt", zap.Int("length", len(prompt)))
-
-	return &mcp.GetPromptResult{
-		Description: "Prompt for capturing workflows as tasks during active development",
-		Messages: []*mcp.PromptMessage{
-			{
-				Role: "user",
-				Content: &mcp.TextContent{
-					Text: prompt,
+					Text: promptInfo.Content,
 				},
 			},
 		},

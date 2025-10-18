@@ -1,3 +1,7 @@
+---
+description: "Prompt for capturing workflows as tasks during active development. Guides recognition of repeatable operations and helps maintain tasks as you work, ensuring institutional knowledge is captured in real-time."
+---
+
 # Capture Workflow as Task
 
 As you work on development tasks, recognize when your current work represents a repeatable workflow that should be captured in the task system for future reference.

@@ -143,3 +143,25 @@ func formatTagsAsMarkdown(tags map[string]int) string {
 
 	return strings.TrimSpace(sb.String())
 }
+
+// formatPromptsAsMarkdown formats a map of prompts with their descriptions as markdown
+func formatPromptsAsMarkdown(prompts map[string]*PromptInfo) string {
+	if len(prompts) == 0 {
+		return "No prompts found."
+	}
+
+	// Sort prompts alphabetically for consistent output
+	promptNames := make([]string, 0, len(prompts))
+	for name := range prompts {
+		promptNames = append(promptNames, name)
+	}
+	sort.Strings(promptNames)
+
+	var sb strings.Builder
+	for _, name := range promptNames {
+		info := prompts[name]
+		sb.WriteString(fmt.Sprintf("**%s**\n\n%s\n\n", name, info.Description))
+	}
+
+	return strings.TrimSpace(sb.String())
+}

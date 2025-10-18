@@ -60,6 +60,16 @@ func (s *Server) registerTools() {
 		},
 	}, s.handleListTags)
 
+	// List prompts tool
+	s.mcp.AddTool(&mcp.Tool{
+		Name:        "list_prompts",
+		Description: "Get all available prompts that can be used with this MCP server. Returns prompt names with their descriptions. Prompts are loaded from the prompts/ directory and can be customized per deployment.",
+		InputSchema: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+	}, s.handleListPrompts)
+
 	// Write tools (only registered when not in read-only mode)
 	if !s.config.ReadOnly {
 		// Add task tool
@@ -289,6 +299,24 @@ func (s *Server) handleListTags(ctx context.Context, req *mcp.CallToolRequest) (
 		Content: []mcp.Content{
 			&mcp.TextContent{
 				Text: formatTagsAsMarkdown(tags),
+			},
+		},
+	}, nil
+}
+
+// handleListPrompts handles the list_prompts tool
+func (s *Server) handleListPrompts(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.logger.Debug("Handling list_prompts request")
+
+	// Get all loaded prompts
+	prompts := s.prompts
+
+	s.logger.Info("Successfully retrieved prompts", zap.Int("prompt_count", len(prompts)))
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: formatPromptsAsMarkdown(prompts),
 			},
 		},
 	}, nil

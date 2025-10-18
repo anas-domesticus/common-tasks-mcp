@@ -1,3 +1,7 @@
+---
+description: "Prompt for generating an initial set of tasks for a codebase. Guides exploration of project structure, build systems, CI/CD configs, and documentation to create tasks with proper relationships and workflows."
+---
+
 # Generate Initial Task Set
 
 You have access to the common-tasks MCP server. Your goal is to create discrete, atomic tasks that capture individual operations developers perform repeatedly. Task relationships (prerequisites/downstream) will naturally express complete workflows.
