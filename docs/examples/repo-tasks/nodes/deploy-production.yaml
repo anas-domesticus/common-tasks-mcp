@@ -1,0 +1,45 @@
+id: deploy-production
+name: Deploy to Production
+summary: Deploy the application to production environment
+description: |
+  Deploys the application to the production Kubernetes cluster.
+
+  Prerequisites:
+  - All tests must pass
+  - Binary must be built
+  - Docker image must be pushed to registry
+
+  Deployment steps:
+  1. Build and tag Docker image
+  2. Push to production registry
+  3. Update kubernetes manifests with new image tag
+  4. Apply manifests: kubectl apply -f k8s/production/
+  5. Wait for rollout: kubectl rollout status deployment/app
+  6. Verify health checks
+
+  Rollback procedure:
+    kubectl rollout undo deployment/app
+
+  Monitoring:
+    - Check Grafana dashboard: https://grafana.internal/d/app-prod
+    - Review logs: kubectl logs -f deployment/app
+    - Alert channel: #prod-alerts
+tags:
+  - deployment
+  - production
+  - kubernetes
+  - critical
+edges:
+  prerequisites:
+    - run-tests
+    - build-binary
+    - build-docker-image
+  downstream_required:
+    - verify-health-checks
+    - smoke-test-production
+  downstream_suggested:
+    - update-release-notes
+    - notify-stakeholders
+    - update-runbook
+created_at: 2024-01-15T11:00:00Z
+updated_at: 2024-01-15T11:00:00Z

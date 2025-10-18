@@ -1,0 +1,21 @@
+id: build-binary
+name: Build Production Binary
+summary: Compile the application binary for production deployment
+description: |
+  Builds the production-optimized binary for the application.
+
+  Command:
+    go build -o bin/app -ldflags="-s -w" ./cmd/app
+
+  This produces a stripped, optimized binary in the bin/ directory.
+  Build takes approximately 30-60 seconds depending on the system.
+
+  The binary will be statically linked and suitable for deployment
+  to production environments.
+tags:
+  - build
+  - go
+  - production
+edges: {}
+created_at: 2024-01-15T10:00:00Z
+updated_at: 2024-01-15T10:00:00Z

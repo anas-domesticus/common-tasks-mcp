@@ -1,0 +1,27 @@
+# Repository Tasks Configuration
+# This configuration sets up the MCP server for managing development workflows,
+# build tasks, and repository operations.
+
+server:
+  # Name of the MCP server (used in protocol identification)
+  name: repo-tasks-mcp
+
+  # Human-friendly display name
+  display_name: Repository Tasks
+
+  # Instructions shown to clients about how to use this server
+  instructions: |-
+    This server provides access to commonly performed development tasks and workflows.
+    Each task includes: what needs to be done first (prerequisites), what must be done
+    after (required follow-ups), and what's recommended to do after (suggested follow-ups).
+    Use this to understand the complete workflow for any development task, not just the
+    immediate action. Start by listing tasks with relevant tags to find what you need,
+    then get the full task details to see the complete workflow.
+
+# Friendly names for graph entities
+naming:
+  node:
+    singular: task
+    plural: tasks
+    display_singular: Task
+    display_plural: Tasks

@@ -1,0 +1,33 @@
+id: run-tests
+name: Run Test Suite
+summary: Execute the full test suite including unit and integration tests
+description: |
+  Runs the complete test suite for the application.
+
+  Commands:
+    go test -v -race -coverprofile=coverage.out ./...
+    go tool cover -html=coverage.out -o coverage.html
+
+  This runs all tests with:
+  - Race condition detection enabled
+  - Coverage reporting
+  - Verbose output
+
+  Expected runtime: 2-5 minutes
+  Expected coverage: > 80%
+
+  If tests fail, check:
+  - Test database is running (docker-compose up -d db)
+  - Environment variables are set correctly
+  - No port conflicts on test ports
+tags:
+  - testing
+  - go
+  - quality-assurance
+edges:
+  prerequisites:
+    - build-binary
+  downstream_suggested:
+    - generate-coverage-report
+created_at: 2024-01-15T10:15:00Z
+updated_at: 2024-01-15T10:15:00Z

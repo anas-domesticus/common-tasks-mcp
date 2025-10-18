@@ -1,0 +1,60 @@
+id: chicken-parmesan
+name: Chicken Parmesan
+summary: Crispy breaded chicken with marinara and melted mozzarella
+description: |
+  Classic Italian-American chicken parmesan with crispy breading,
+  tangy marinara, and gooey melted mozzarella cheese.
+
+  Prep time: 20 minutes
+  Cook time: 25 minutes
+  Serves: 4
+
+  Ingredients:
+  - 4 boneless skinless chicken breasts (6 oz each)
+  - 1 cup all-purpose flour
+  - 2 eggs, beaten
+  - 1.5 cups panko breadcrumbs
+  - 1/2 cup grated parmesan cheese
+  - 2 cups marinara sauce (see marinara-sauce recipe)
+  - 2 cups shredded mozzarella cheese
+  - 1/4 cup olive oil for frying
+  - Salt and pepper to taste
+  - Fresh basil for garnish
+
+  Instructions:
+  1. Preheat oven to 400°F (200°C)
+  2. Pound chicken breasts to even 1/2 inch thickness
+  3. Season chicken with salt and pepper
+  4. Set up breading station: flour, beaten eggs, panko+parmesan mixed
+  5. Bread each chicken breast: flour -> egg -> breadcrumb mixture
+  6. Heat olive oil in large skillet over medium-high heat
+  7. Pan-fry chicken 3-4 minutes per side until golden brown
+  8. Transfer chicken to baking dish
+  9. Top each piece with 1/2 cup marinara and 1/2 cup mozzarella
+  10. Bake 15-20 minutes until cheese melts and bubbles
+  11. Garnish with fresh basil and serve immediately
+
+  Serving suggestions: Serve over spaghetti or with garlic bread and salad
+
+  Storage: Refrigerate up to 3 days, reheat in oven at 350°F
+
+  Nutrition (per serving): 520 cal, 24g fat, 32g carbs, 46g protein
+tags:
+  - italian
+  - main-course
+  - chicken
+  - baked
+  - comfort-food
+  - weeknight-dinner
+edges:
+  requires:
+    - marinara-sauce
+  pairs_with:
+    - garlic-bread
+    - caesar-salad
+    - spaghetti
+  variations:
+    - eggplant-parmesan
+    - veal-parmesan
+created_at: 2024-01-15T10:30:00Z
+updated_at: 2024-01-15T10:30:00Z

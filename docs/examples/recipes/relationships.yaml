@@ -1,0 +1,29 @@
+# Relationship type definitions for recipe knowledge graphs
+#
+# This configuration defines relationship types for culinary knowledge:
+#
+# 1. requires - Ingredients, base recipes, or techniques needed
+# 2. produces - Dishes or components this recipe creates
+# 3. pairs_with - Recipes that complement this one
+# 4. variations - Alternative versions of this recipe
+
+relationships:
+  # Ingredients, base recipes, or techniques required for this recipe
+  - name: requires
+    description: Ingredients or base recipes required for this recipe
+    direction: backward
+
+  # Dishes or meal components this recipe produces
+  - name: produces
+    description: Dishes or components this recipe produces
+    direction: forward
+
+  # Recipes that pair well with this one (appetizer/main, main/side, etc.)
+  - name: pairs_with
+    description: Recipes that complement this recipe
+    direction: none
+
+  # Alternative versions or variations of this recipe
+  - name: variations
+    description: Recipe variations or alternative preparations
+    direction: none

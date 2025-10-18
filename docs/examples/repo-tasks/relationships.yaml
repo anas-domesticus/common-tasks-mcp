@@ -1,0 +1,24 @@
+# Relationship type definitions for repository task workflows
+#
+# This configuration defines three relationship types that form the basis
+# of development workflow management:
+#
+# 1. prerequisites - What must happen before
+# 2. downstream_required - What must happen after
+# 3. downstream_suggested - What should probably happen after
+
+relationships:
+  # Tasks that must be completed before this task can run
+  - name: prerequisites
+    description: Tasks that must be completed before this task
+    direction: backward
+
+  # Tasks that must be completed after this task
+  - name: downstream_required
+    description: Tasks that must be completed after this task
+    direction: forward
+
+  # Tasks that are recommended to run after this task
+  - name: downstream_suggested
+    description: Tasks that are recommended to be completed after this task
+    direction: forward

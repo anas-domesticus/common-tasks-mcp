@@ -1,0 +1,44 @@
+id: marinara-sauce
+name: Classic Marinara Sauce
+summary: Simple Italian tomato sauce with garlic and basil
+description: |
+  A classic Italian marinara sauce perfect for pasta, pizza, or as a
+  base for other recipes.
+
+  Prep time: 5 minutes
+  Cook time: 30 minutes
+  Yield: 4 cups (8 servings)
+
+  Ingredients:
+  - 2 tbsp olive oil
+  - 4 cloves garlic, minced
+  - 28 oz crushed tomatoes (1 can)
+  - 1 tsp dried basil (or 2 tbsp fresh)
+  - 1 tsp salt
+  - 1/2 tsp black pepper
+  - Pinch of sugar (optional, to balance acidity)
+
+  Instructions:
+  1. Heat olive oil in a large saucepan over medium heat
+  2. Add minced garlic and sauté until fragrant (30 seconds)
+  3. Add crushed tomatoes and stir to combine
+  4. Add basil, salt, and pepper
+  5. Simmer uncovered for 30 minutes, stirring occasionally
+  6. Taste and adjust seasoning as needed
+  7. Optional: blend with immersion blender for smoother texture
+
+  Storage: Refrigerate up to 5 days or freeze up to 3 months
+
+  Nutrition (per 1/2 cup): 60 cal, 3g fat, 8g carbs, 2g protein
+tags:
+  - sauce
+  - italian
+  - vegetarian
+  - vegan
+  - base-recipe
+  - tomato-based
+edges:
+  produces:
+    - marinara-sauce-batch
+created_at: 2024-01-15T09:00:00Z
+updated_at: 2024-01-15T09:00:00Z

@@ -1,0 +1,55 @@
+id: garlic-bread
+name: Garlic Bread
+summary: Crispy toasted bread with garlic butter and herbs
+description: |
+  Classic garlic bread with butter, fresh garlic, and parsley.
+  Perfect side dish for pasta, soups, or Italian meals.
+
+  Prep time: 10 minutes
+  Cook time: 12 minutes
+  Serves: 6-8
+
+  Ingredients:
+  - 1 French baguette or Italian loaf
+  - 1/2 cup (1 stick) butter, softened
+  - 4 cloves garlic, minced
+  - 2 tbsp fresh parsley, chopped
+  - 1/4 tsp salt
+  - Optional: 1/4 cup grated parmesan cheese
+
+  Instructions:
+  1. Preheat oven to 375°F (190°C)
+  2. Slice bread in half lengthwise
+  3. Mix softened butter, minced garlic, parsley, and salt
+  4. Spread garlic butter evenly on cut sides of bread
+  5. Optional: sprinkle with parmesan cheese
+  6. Place on baking sheet, cut side up
+  7. Bake 10-12 minutes until edges are golden and crispy
+  8. For extra crispy top: broil for 1-2 minutes (watch carefully!)
+  9. Slice into portions and serve hot
+
+  Variations:
+  - Cheesy: Add mozzarella before baking
+  - Herby: Add basil, oregano, or Italian seasoning
+  - Spicy: Add red pepper flakes to butter
+
+  Storage: Best served immediately, can be wrapped and reheated
+
+  Nutrition (per serving): 180 cal, 12g fat, 16g carbs, 3g protein
+tags:
+  - side-dish
+  - italian
+  - bread
+  - quick
+  - vegetarian
+edges:
+  pairs_with:
+    - chicken-parmesan
+    - spaghetti
+    - minestrone-soup
+    - lasagna
+  variations:
+    - cheesy-garlic-bread
+    - herb-bread
+created_at: 2024-01-15T10:45:00Z
+updated_at: 2024-01-15T10:45:00Z
