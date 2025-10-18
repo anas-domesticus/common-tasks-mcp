@@ -1,0 +1,39 @@
+id: review-example-readmes
+name: Review Example READMEs
+summary: Review and validate README files in the examples directory for consistency and accuracy
+description: |-
+    Reviews README files in the docs/examples/ directory to ensure they are consistent with actual configuration files and sample nodes.
+
+    Steps:
+    1. Read the example's README.md in docs/examples/<example-name>/
+    2. Read the corresponding mcp.yaml and relationships.yaml files
+    3. Check that README describes the correct tool names (e.g., add_task vs add_recipe)
+    4. Verify relationship names in README match relationships.yaml exactly
+    5. Check that embedded YAML examples include all required fields (id, name, summary, description, tags, edges)
+    6. Verify edge relationship names in examples match the relationships.yaml configuration
+    7. Confirm README mentions all files that actually exist (nodes/, prompts/ directories)
+    8. Check that tag suggestions align with actual tags used in sample nodes
+    9. Validate any workflow diagrams match the actual node relationships
+    10. Ensure running instructions reference correct directory paths
+
+    Common issues to watch for:
+    - READMEs showing old/incorrect relationship names
+    - Embedded YAML examples missing required fields
+    - Tool names not matching the singular/plural configuration
+    - Missing mentions of included sample files
+    - Overly verbose embedded examples (prefer referencing actual node files)
+    - Inconsistent terminology between README and config files
+
+    Directory: docs/examples/
+    Subdirectories: Each example has its own directory with README.md, mcp.yaml, relationships.yaml, and optionally nodes/ and prompts/
+tags:
+    - documentation
+    - validation
+    - examples
+    - quality-assurance
+edges:
+    downstream_required: []
+    downstream_suggested: []
+    prerequisites: []
+created_at: 2025-10-18T15:15:51.953600172+01:00
+updated_at: 2025-10-18T15:15:51.953600172+01:00

@@ -1,0 +1,45 @@
+id: update-tasks-directory
+name: Update Tasks Directory
+summary: Add, update, or remove task definitions in the .tasks/ directory
+description: |-
+    Updates the project's task repository in the .tasks/ directory. This directory is used for dogfooding - tracking common development workflows for this project.
+
+    Steps:
+    1. Identify the task or workflow to document
+    2. Check if a similar task already exists using `list_tasks` or by reviewing .tasks/nodes/
+    3. Create new YAML file in .tasks/nodes/ with structure:
+       - id: kebab-case-identifier
+       - name: Human Readable Name
+       - summary: One-line description
+       - description: Detailed steps, commands, file locations
+       - tags: Array of relevant tags (2-4 recommended)
+       - edges: Relationship definitions (prerequisites, downstream_required, downstream_suggested)
+    4. Ensure all referenced task IDs in edges actually exist
+    5. Use appropriate tags: testing, documentation, build, deployment, validation, etc.
+    6. Consider if this change should update .tasks/README.md (if it affects usage)
+    7. Consider if this change should update main README.md (if it affects project documentation)
+
+    File location: .tasks/nodes/<task-id>.yaml
+
+    Relationship fields (from .tasks/relationships.yaml):
+    - prerequisites: Tasks that must complete before this one
+    - downstream_required: Tasks that must follow this one
+    - downstream_suggested: Recommended follow-up tasks
+
+    Best practices:
+    - Keep tasks atomic (single purpose)
+    - Be specific with commands and file paths
+    - Use existing tasks as examples
+    - Validate YAML syntax before committing
+tags:
+    - tasks
+    - documentation
+    - dogfooding
+    - maintenance
+edges:
+    downstream_required: []
+    downstream_suggested:
+        - update-main-readme
+    prerequisites: []
+created_at: 2025-10-18T15:20:04.599681067+01:00
+updated_at: 2025-10-18T15:20:04.599681067+01:00

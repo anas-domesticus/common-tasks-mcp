@@ -36,6 +36,12 @@ The DAG structure provides semantic relationships that AI systems can navigate i
 
 By encoding domain knowledge as queryable graphs rather than static documents, this server enables AI systems to be more precise, efficient, and context-aware.
 
+## Dogfooding
+
+This project uses itself to manage development workflows. The `.tasks/` directory contains our own task repository tracking common development operations like running tests, updating documentation, and reviewing examples. This serves both as a practical development tool and a real-world demonstration of the system.
+
+See [.tasks/README.md](.tasks/README.md) for setup instructions and usage examples.
+
 ## Features
 
 - **Configuration-driven identity**: Server name, terminology, and tool names adapt to your domain
