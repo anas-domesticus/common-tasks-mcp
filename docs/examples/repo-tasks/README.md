@@ -12,7 +12,11 @@ Track institutional knowledge about development workflows:
 - Release procedures
 - Database migration workflows
 
-## Configuration
+## Configuration Files
+
+This example includes:
+- `mcp.yaml` - Server identity and terminology configuration
+- `relationships.yaml` - Relationship type definitions
 
 ### MCP Tools Generated
 
