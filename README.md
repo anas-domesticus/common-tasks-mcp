@@ -56,6 +56,8 @@ See [.tasks/README.md](.tasks/README.md) for setup instructions and usage exampl
 
 ## Example Use Cases
 
+The server adapts to any domain through simple YAML configuration. Here's a quick example:
+
 ### Development Tasks & Workflows
 ```yaml
 # mcp.yaml
@@ -82,109 +84,16 @@ relationships:
 
 **Result**: Tools like `add_task`, `list_tasks`, `get_task` for managing development workflows.
 
-### Recipe Knowledge Base
-```yaml
-# mcp.yaml
-server:
-  name: recipe-graph-mcp
-  display_name: Recipe Knowledge Base
-naming:
-  node:
-    singular: recipe
-    plural: recipes
+### More Examples
 
-# relationships.yaml
-relationships:
-  - name: requires_ingredients
-    description: Ingredients needed for this recipe
-    direction: backward
-  - name: produces
-    description: Dishes this recipe yields
-    direction: forward
-  - name: pairs_with
-    description: Recipes that complement this one
-    direction: none
-```
+For complete, working examples including:
+- **Recipe Knowledge Base** - Culinary recipes with ingredient dependencies
+- **Microservices Dependency Tracking** - Service mesh relationships
+- **Learning Path System** - Educational content with prerequisites
+- **Infrastructure Components** - Infrastructure as code dependencies
+- **And more...**
 
-**Result**: Tools like `add_recipe`, `list_recipes`, `get_recipe` for culinary knowledge graphs.
-
-### Microservices Dependency Tracking
-```yaml
-# mcp.yaml
-server:
-  name: service-mesh-mcp
-  display_name: Service Dependencies
-naming:
-  node:
-    singular: service
-    plural: services
-
-# relationships.yaml
-relationships:
-  - name: depends_on
-    description: Services this service depends on
-    direction: backward
-  - name: consumed_by
-    description: Services that depend on this service
-    direction: forward
-  - name: shares_database_with
-    description: Services sharing the same database
-    direction: none
-```
-
-**Result**: Tools like `add_service`, `list_services`, `get_service` for service mesh management.
-
-### Learning Path System
-```yaml
-# mcp.yaml
-server:
-  name: curriculum-mcp
-  display_name: Learning Paths
-naming:
-  node:
-    singular: lesson
-    plural: lessons
-
-# relationships.yaml
-relationships:
-  - name: prerequisites
-    description: Lessons that must be completed first
-    direction: backward
-  - name: unlocks
-    description: Advanced lessons this unlocks
-    direction: forward
-  - name: related_topics
-    description: Related lessons for additional context
-    direction: none
-```
-
-**Result**: Tools like `add_lesson`, `list_lessons`, `get_lesson` for educational content.
-
-### Infrastructure Components
-```yaml
-# mcp.yaml
-server:
-  name: infrastructure-mcp
-  display_name: Infrastructure Graph
-naming:
-  node:
-    singular: component
-    plural: components
-
-# relationships.yaml
-relationships:
-  - name: requires_infrastructure
-    description: Infrastructure this component needs
-    direction: backward
-  - name: provides_services
-    description: Services exposed by this component
-    direction: forward
-  - name: monitored_by
-    description: Monitoring systems for this component
-    direction: forward
-```
-
-**Result**: Tools like `add_component`, `list_components`, `get_component` for infrastructure as code.
+See the **[docs/examples/](docs/examples/)** directory for full configuration files, sample data, and usage instructions.
 
 ## Installation
 
