@@ -265,3 +265,102 @@ func TestGetNodesByTag(t *testing.T) {
 		t.Errorf("Expected 'tag cannot be empty' error, got: %v", err)
 	}
 }
+
+func TestGetAllTags(t *testing.T) {
+	log, _ := logger.New(false)
+	manager := NewManager(log)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Test with empty manager
+	tags := manager.GetAllTags()
+	if len(tags) != 0 {
+		t.Errorf("Expected 0 tags from empty manager, got %d", len(tags))
+	}
+
+	// Create nodes with various tags
+	nodeA := &types.Node{
+		ID:          "task-a",
+		Name:        "Node A",
+		Summary:     "First node",
+		Description: "Node with backend and api tags",
+		Tags:        []string{"backend", "api"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	nodeB := &types.Node{
+		ID:          "task-b",
+		Name:        "Node B",
+		Summary:     "Second node",
+		Description: "Node with frontend and api tags",
+		Tags:        []string{"frontend", "api"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	nodeC := &types.Node{
+		ID:          "task-c",
+		Name:        "Node C",
+		Summary:     "Third node",
+		Description: "Node with testing tag",
+		Tags:        []string{"testing"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	nodeD := &types.Node{
+		ID:          "task-d",
+		Name:        "Node D",
+		Summary:     "Fourth node",
+		Description: "Node with backend tag",
+		Tags:        []string{"backend"},
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	// Add nodes
+	if err := manager.AddNode(nodeA); err != nil {
+		t.Fatalf("Failed to add node A: %v", err)
+	}
+	if err := manager.AddNode(nodeB); err != nil {
+		t.Fatalf("Failed to add node B: %v", err)
+	}
+	if err := manager.AddNode(nodeC); err != nil {
+		t.Fatalf("Failed to add node C: %v", err)
+	}
+	if err := manager.AddNode(nodeD); err != nil {
+		t.Fatalf("Failed to add node D: %v", err)
+	}
+
+	// Get all tags
+	tags = manager.GetAllTags()
+
+	// Verify we have 4 unique tags
+	if len(tags) != 4 {
+		t.Errorf("Expected 4 unique tags, got %d", len(tags))
+	}
+
+	// Verify tag counts
+	expectedCounts := map[string]int{
+		"api":      2, // nodes A and B
+		"backend":  2, // nodes A and D
+		"frontend": 1, // node B
+		"testing":  1, // node C
+	}
+
+	for tag, expectedCount := range expectedCounts {
+		count, exists := tags[tag]
+		if !exists {
+			t.Errorf("Expected tag '%s' to exist, but it doesn't", tag)
+		} else if count != expectedCount {
+			t.Errorf("Expected tag '%s' to have count %d, got %d", tag, expectedCount, count)
+		}
+	}
+
+	// Verify no unexpected tags
+	for tag := range tags {
+		if _, expected := expectedCounts[tag]; !expected {
+			t.Errorf("Unexpected tag '%s' found in results", tag)
+		}
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"common-tasks-mcp/pkg/graph_manager"
 	"common-tasks-mcp/pkg/graph_manager/types"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -119,4 +120,26 @@ func capitalizeFirst(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// formatTagsAsMarkdown formats a map of tags with their counts as markdown
+func formatTagsAsMarkdown(tags map[string]int) string {
+	if len(tags) == 0 {
+		return "No tags found."
+	}
+
+	// Sort tags alphabetically for consistent output
+	tagNames := make([]string, 0, len(tags))
+	for tag := range tags {
+		tagNames = append(tagNames, tag)
+	}
+	sort.Strings(tagNames)
+
+	var sb strings.Builder
+	for _, tag := range tagNames {
+		count := tags[tag]
+		sb.WriteString(fmt.Sprintf("%s (%d)\n", tag, count))
+	}
+
+	return strings.TrimSpace(sb.String())
 }

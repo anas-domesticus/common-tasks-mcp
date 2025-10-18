@@ -50,6 +50,16 @@ func (s *Server) registerTools() {
 		},
 	}, s.handleGetTask)
 
+	// List tags tool
+	s.mcp.AddTool(&mcp.Tool{
+		Name:        "list_tags",
+		Description: fmt.Sprintf("Get all unique tags used across all %s. Returns each tag with the count of %s that use it. Use this to discover available tags for filtering and categorization.", naming.Plural, naming.Plural),
+		InputSchema: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+	}, s.handleListTags)
+
 	// Write tools (only registered when not in read-only mode)
 	if !s.config.ReadOnly {
 		// Add task tool
@@ -261,6 +271,24 @@ func (s *Server) handleGetTask(ctx context.Context, req *mcp.CallToolRequest) (*
 		Content: []mcp.Content{
 			&mcp.TextContent{
 				Text: formatNodeAsMarkdown(node, s.taskManager),
+			},
+		},
+	}, nil
+}
+
+// handleListTags handles the list_tags tool
+func (s *Server) handleListTags(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.logger.Debug("Handling list_tags request")
+
+	// Get all tags with counts
+	tags := s.taskManager.GetAllTags()
+
+	s.logger.Info("Successfully retrieved tags", zap.Int("tag_count", len(tags)))
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: formatTagsAsMarkdown(tags),
 			},
 		},
 	}, nil

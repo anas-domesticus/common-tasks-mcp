@@ -33,3 +33,15 @@ func (m *Manager) GetNodesByTag(tag string) ([]*types.Node, error) {
 
 	return nodes, nil
 }
+
+// GetAllTags retrieves all unique tags from the tag cache
+// Returns a map where keys are tag names and values are the count of nodes with that tag
+func (m *Manager) GetAllTags() map[string]int {
+	tags := make(map[string]int)
+
+	for tag, nodes := range m.tagCache {
+		tags[tag] = len(nodes)
+	}
+
+	return tags
+}
